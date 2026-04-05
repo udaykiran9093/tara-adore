@@ -64,7 +64,11 @@ def send_reset_email(to_email, reset_link):
         </body></html>
         """
         msg.attach(MIMEText(html_body, 'html'))
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        # Using port 587 with STARTTLS (works on Railway, port 465 is blocked)
+        with smtplib.SMTP('smtp.gmail.com', 587) as server:
+            server.ehlo()
+            server.starttls()
+            server.ehlo()
             server.login(MAIL_USERNAME, MAIL_PASSWORD)
             server.sendmail(MAIL_USERNAME, to_email, msg.as_string())
         return True
@@ -148,11 +152,15 @@ def forgot_password():
             )
             db.commit()
             reset_link = f"https://web-production-e471e.up.railway.app/reset-password/{token}"
-            sent = send_reset_email(email, reset_link)
-            if sent:
-                success = f'Reset link sent to <strong>{email}</strong>. Check your inbox!'
-            else:
-                success = f'Dev mode — <a href="{reset_link}" style="color:#C9A84C">click here to reset your password</a>'
+            try:
+                sent = send_reset_email(email, reset_link)
+                if sent:
+                    success = f'Reset link sent to <strong>{email}</strong>. Check your inbox!'
+                else:
+                    success = f'Reset link: <a href="{reset_link}" style="color:#C9A84C">click here to reset your password</a>'
+            except Exception as e:
+                print(f"Email error: {e}")
+                success = f'Reset link: <a href="{reset_link}" style="color:#C9A84C">click here to reset your password</a>'
         else:
             error = 'No account found with that username and email combination.'
         db.close()
