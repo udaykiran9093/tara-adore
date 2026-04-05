@@ -73,8 +73,11 @@ def send_reset_email(to_email, reset_link):
             server.sendmail(MAIL_USERNAME, to_email, msg.as_string())
         return True
     except Exception as e:
-        print(f"Email error: {e}")
-        return False
+    print(f"EMAIL ERROR TYPE: {type(e).__name__}")
+    print(f"EMAIL ERROR DETAIL: {e}")
+    import traceback
+    traceback.print_exc()
+    return False
 
 # ── LOGIN / LOGOUT ───────────────────────────────────────────────────────────
 @app.route('/')
