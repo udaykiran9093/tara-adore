@@ -763,6 +763,161 @@ def forecast():
                            total_predicted=total_predicted,
                            model_trained=model_trained)
 
+# ── INVOICE PDF ───────────────────────────────────────────────────────────────
+@app.route('/invoice/<int:sale_id>')
+def download_invoice(sale_id):
+    if 'admin' not in session:
+        return redirect('/login')
+    
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib import colors
+    from reportlab.lib.units import mm
+    from reportlab.pdfgen import canvas
+    import io
+
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("""
+        SELECT s.id, s.sale_date, s.quantity, s.unit_price, s.total_amount,
+               s.payment_status, s.delivery_status,
+               c.name as customer_name, c.phone, c.city, c.state, c.pincode,
+               p.name as product_name, p.category, p.material, p.weight_grams
+        FROM sales s
+        JOIN customers c ON s.customer_id = c.id
+        JOIN products p ON s.product_id = p.id
+        WHERE s.id = %s
+    """, (sale_id,))
+    sale = cur.fetchone()
+    db.close()
+
+    if not sale:
+        return "Sale not found", 404
+
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    width, height = A4
+
+    # ── Background
+    c.setFillColorRGB(0.02, 0.02, 0.02)
+    c.rect(0, 0, width, height, fill=1, stroke=0)
+
+    # ── Gold header bar
+    c.setFillColorRGB(0.91, 0.79, 0.48)
+    c.rect(0, height - 60*mm, width, 60*mm, fill=1, stroke=0)
+
+    # ── Brand name
+    c.setFillColorRGB(0.05, 0.05, 0.05)
+    c.setFont("Helvetica-Bold", 28)
+    c.drawString(20*mm, height - 25*mm, "TARA ADORE")
+    c.setFont("Helvetica", 9)
+    c.drawString(20*mm, height - 33*mm, "JEWELLERY ANALYTICS PLATFORM")
+
+    # ── Invoice label
+    c.setFont("Helvetica-Bold", 20)
+    c.drawRightString(width - 20*mm, height - 25*mm, "INVOICE")
+    c.setFont("Helvetica", 9)
+    c.drawRightString(width - 20*mm, height - 33*mm, f"# TA-{sale['id']:05d}")
+
+    # ── White card area
+    c.setFillColorRGB(0.08, 0.08, 0.08)
+    c.roundRect(15*mm, 30*mm, width - 30*mm, height - 75*mm, 8, fill=1, stroke=0)
+
+    # ── Bill To section
+    c.setFillColorRGB(0.91, 0.79, 0.48)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(25*mm, height - 75*mm, "BILL TO")
+
+    c.setFillColorRGB(0.94, 0.93, 0.89)
+    c.setFont("Helvetica-Bold", 13)
+    c.drawString(25*mm, height - 84*mm, str(sale['customer_name']))
+
+    c.setFillColorRGB(0.62, 0.60, 0.58)
+    c.setFont("Helvetica", 9)
+    c.drawString(25*mm, height - 91*mm, f"Phone: {sale['phone'] or 'N/A'}")
+    c.drawString(25*mm, height - 97*mm, f"{sale['city'] or ''}, {sale['state'] or ''} - {sale['pincode'] or ''}")
+
+    # ── Invoice details (right side)
+    c.setFillColorRGB(0.91, 0.79, 0.48)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawRightString(width - 25*mm, height - 75*mm, "INVOICE DETAILS")
+
+    c.setFillColorRGB(0.62, 0.60, 0.58)
+    c.setFont("Helvetica", 9)
+    sale_date = sale['sale_date'].strftime('%d %b %Y') if hasattr(sale['sale_date'], 'strftime') else str(sale['sale_date'])
+    c.drawRightString(width - 25*mm, height - 84*mm, f"Date: {sale_date}")
+    c.drawRightString(width - 25*mm, height - 91*mm, f"Payment: {sale['payment_status']}")
+    c.drawRightString(width - 25*mm, height - 97*mm, f"Delivery: {sale['delivery_status']}")
+
+    # ── Divider line
+    c.setStrokeColorRGB(0.91, 0.79, 0.48, 0.3)
+    c.setLineWidth(0.5)
+    c.line(25*mm, height - 108*mm, width - 25*mm, height - 108*mm)
+
+    # ── Table header
+    c.setFillColorRGB(0.91, 0.79, 0.48)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(25*mm,  height - 117*mm, "PRODUCT")
+    c.drawString(95*mm,  height - 117*mm, "MATERIAL")
+    c.drawString(130*mm, height - 117*mm, "WEIGHT")
+    c.drawString(155*mm, height - 117*mm, "QTY")
+    c.drawString(168*mm, height - 117*mm, "UNIT PRICE")
+    c.drawRightString(width - 25*mm, height - 117*mm, "TOTAL")
+
+    # ── Thin gold line under header
+    c.setStrokeColorRGB(0.91, 0.79, 0.48, 0.5)
+    c.line(25*mm, height - 120*mm, width - 25*mm, height - 120*mm)
+
+    # ── Table row
+    c.setFillColorRGB(0.94, 0.93, 0.89)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(25*mm,  height - 130*mm, str(sale['product_name']))
+    c.setFont("Helvetica", 9)
+    c.setFillColorRGB(0.62, 0.60, 0.58)
+    c.drawString(25*mm,  height - 137*mm, str(sale['category']))
+    c.drawString(95*mm,  height - 130*mm, str(sale['material'] or 'N/A'))
+    c.drawString(130*mm, height - 130*mm, f"{sale['weight_grams']}g" if sale['weight_grams'] else 'N/A')
+    c.drawString(155*mm, height - 130*mm, str(sale['quantity']))
+    c.drawString(168*mm, height - 130*mm, f"Rs.{float(sale['unit_price']):,.2f}")
+    c.setFillColorRGB(0.91, 0.79, 0.48)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawRightString(width - 25*mm, height - 130*mm, f"Rs.{float(sale['total_amount']):,.2f}")
+
+    # ── Divider
+    c.setStrokeColorRGB(0.91, 0.79, 0.48, 0.3)
+    c.line(25*mm, height - 145*mm, width - 25*mm, height - 145*mm)
+
+    # ── Total box
+    c.setFillColorRGB(0.91, 0.79, 0.48, 0.1)
+    c.roundRect(120*mm, height - 168*mm, width - 145*mm, 20*mm, 5, fill=1, stroke=0)
+    c.setFillColorRGB(0.62, 0.60, 0.58)
+    c.setFont("Helvetica", 9)
+    c.drawString(125*mm, height - 153*mm, "TOTAL AMOUNT")
+    c.setFillColorRGB(0.91, 0.79, 0.48)
+    c.setFont("Helvetica-Bold", 14)
+    c.drawRightString(width - 25*mm, height - 153*mm, f"Rs.{float(sale['total_amount']):,.2f}")
+
+    # ── Thank you note
+    c.setFillColorRGB(0.62, 0.60, 0.58)
+    c.setFont("Helvetica", 8)
+    c.drawCentredString(width/2, 45*mm, "Thank you for choosing Tara Adore. We hope you love your jewellery!")
+    
+    # ── Footer
+    c.setFillColorRGB(0.91, 0.79, 0.48)
+    c.rect(0, 0, width, 25*mm, fill=1, stroke=0)
+    c.setFillColorRGB(0.05, 0.05, 0.05)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawCentredString(width/2, 14*mm, "TARA ADORE  ·  taraadore.in")
+    c.setFont("Helvetica", 7)
+    c.drawCentredString(width/2, 8*mm, "Jewellery Analytics Platform  ·  © 2025 Tara Adore")
+
+    c.save()
+    buffer.seek(0)
+
+    response = make_response(buffer.read())
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename=TaraAdore_Invoice_{sale_id}.pdf'
+    return response
+
 # ── RUN ───────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
     app.run(debug=True)

@@ -11,3 +11,4 @@ python-dotenv
 Werkzeug
 joblib
 resend
+reportlab
