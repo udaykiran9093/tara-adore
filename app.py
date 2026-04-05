@@ -768,12 +768,10 @@ def forecast():
 def download_invoice(sale_id):
     if 'admin' not in session:
         return redirect('/login')
-    
+
     from reportlab.lib.pagesizes import A4
-    from reportlab.lib import colors
     from reportlab.lib.units import mm
     from reportlab.pdfgen import canvas
-    import io
 
     db = get_db()
     cur = db.cursor()
@@ -818,29 +816,26 @@ def download_invoice(sale_id):
     c.setFont("Helvetica", 9)
     c.drawRightString(width - 20*mm, height - 33*mm, f"# TA-{sale['id']:05d}")
 
-    # ── White card area
+    # ── Card area
     c.setFillColorRGB(0.08, 0.08, 0.08)
     c.roundRect(15*mm, 30*mm, width - 30*mm, height - 75*mm, 8, fill=1, stroke=0)
 
-    # ── Bill To section
+    # ── Bill To
     c.setFillColorRGB(0.91, 0.79, 0.48)
     c.setFont("Helvetica-Bold", 8)
     c.drawString(25*mm, height - 75*mm, "BILL TO")
-
     c.setFillColorRGB(0.94, 0.93, 0.89)
     c.setFont("Helvetica-Bold", 13)
     c.drawString(25*mm, height - 84*mm, str(sale['customer_name']))
-
     c.setFillColorRGB(0.62, 0.60, 0.58)
     c.setFont("Helvetica", 9)
     c.drawString(25*mm, height - 91*mm, f"Phone: {sale['phone'] or 'N/A'}")
     c.drawString(25*mm, height - 97*mm, f"{sale['city'] or ''}, {sale['state'] or ''} - {sale['pincode'] or ''}")
 
-    # ── Invoice details (right side)
+    # ── Invoice details right side
     c.setFillColorRGB(0.91, 0.79, 0.48)
     c.setFont("Helvetica-Bold", 8)
     c.drawRightString(width - 25*mm, height - 75*mm, "INVOICE DETAILS")
-
     c.setFillColorRGB(0.62, 0.60, 0.58)
     c.setFont("Helvetica", 9)
     sale_date = sale['sale_date'].strftime('%d %b %Y') if hasattr(sale['sale_date'], 'strftime') else str(sale['sale_date'])
@@ -848,59 +843,69 @@ def download_invoice(sale_id):
     c.drawRightString(width - 25*mm, height - 91*mm, f"Payment: {sale['payment_status']}")
     c.drawRightString(width - 25*mm, height - 97*mm, f"Delivery: {sale['delivery_status']}")
 
-    # ── Divider line
+    # ── Divider
     c.setStrokeColorRGB(0.91, 0.79, 0.48, 0.3)
     c.setLineWidth(0.5)
     c.line(25*mm, height - 108*mm, width - 25*mm, height - 108*mm)
 
+    # ── Column positions (fixed, no overlap)
+    COL_PRODUCT  = 25*mm
+    COL_MATERIAL = 90*mm
+    COL_WEIGHT   = 125*mm
+    COL_QTY      = 148*mm
+    COL_UNIT     = 168*mm   # right-aligned
+    COL_TOTAL    = width - 20*mm  # right-aligned
+
     # ── Table header
     c.setFillColorRGB(0.91, 0.79, 0.48)
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(25*mm,  height - 117*mm, "PRODUCT")
-    c.drawString(95*mm,  height - 117*mm, "MATERIAL")
-    c.drawString(130*mm, height - 117*mm, "WEIGHT")
-    c.drawString(148*mm, height - 117*mm, "QTY")
-    c.drawRightString(175*mm, height - 117*mm, "UNIT PRICE")
-    c.drawRightString(width - 15*mm, height - 117*mm, "TOTAL")
+    c.drawString(COL_PRODUCT,  height - 117*mm, "PRODUCT")
+    c.drawString(COL_MATERIAL, height - 117*mm, "MATERIAL")
+    c.drawString(COL_WEIGHT,   height - 117*mm, "WEIGHT")
+    c.drawString(COL_QTY,      height - 117*mm, "QTY")
+    c.drawRightString(COL_UNIT,  height - 117*mm, "UNIT PRICE")
+    c.drawRightString(COL_TOTAL, height - 117*mm, "TOTAL")
 
-    # ── Thin gold line under header
+    # ── Header underline
     c.setStrokeColorRGB(0.91, 0.79, 0.48, 0.5)
-    c.line(25*mm, height - 120*mm, width - 25*mm, height - 120*mm)
+    c.line(25*mm, height - 120*mm, width - 20*mm, height - 120*mm)
 
-    # ── Table row
+    # ── Table row (each column drawn ONCE only)
     c.setFillColorRGB(0.94, 0.93, 0.89)
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(25*mm,  height - 130*mm, str(sale['product_name']))
-    c.setFont("Helvetica", 9)
-    c.setFillColorRGB(0.62, 0.60, 0.58)
-    c.drawString(148*mm, height - 130*mm, str(sale['quantity']))
-    c.drawRightString(175*mm, height - 130*mm, f"Rs.{float(sale['unit_price']):,.2f}")
-    c.setFillColorRGB(0.91, 0.79, 0.48)
-    c.setFont("Helvetica-Bold", 10)
-    c.drawRightString(width - 15*mm, height - 130*mm, f"Rs.{float(sale['total_amount']):,.2f}")
-    c.setFillColorRGB(0.91, 0.79, 0.48)
-    c.setFont("Helvetica-Bold", 10)
-    c.drawRightString(width - 25*mm, height - 130*mm, f"Rs.{float(sale['total_amount']):,.2f}")
+    c.drawString(COL_PRODUCT, height - 130*mm, str(sale['product_name']))
 
-    # ── Divider
+    c.setFillColorRGB(0.62, 0.60, 0.58)
+    c.setFont("Helvetica", 9)
+    c.drawString(COL_PRODUCT,  height - 138*mm, str(sale['category']))
+    c.drawString(COL_MATERIAL, height - 130*mm, str(sale['material'] or 'N/A'))
+    c.drawString(COL_WEIGHT,   height - 130*mm, f"{sale['weight_grams']}g" if sale['weight_grams'] else 'N/A')
+    c.drawString(COL_QTY,      height - 130*mm, str(sale['quantity']))
+    c.drawRightString(COL_UNIT, height - 130*mm, f"Rs.{float(sale['unit_price']):,.0f}")
+
+    c.setFillColorRGB(0.91, 0.79, 0.48)
+    c.setFont("Helvetica-Bold", 10)
+    c.drawRightString(COL_TOTAL, height - 130*mm, f"Rs.{float(sale['total_amount']):,.0f}")
+
+    # ── Row divider
     c.setStrokeColorRGB(0.91, 0.79, 0.48, 0.3)
-    c.line(25*mm, height - 145*mm, width - 25*mm, height - 145*mm)
+    c.line(25*mm, height - 145*mm, width - 20*mm, height - 145*mm)
 
     # ── Total box
     c.setFillColorRGB(0.91, 0.79, 0.48, 0.1)
-    c.roundRect(120*mm, height - 168*mm, width - 145*mm, 20*mm, 5, fill=1, stroke=0)
+    c.roundRect(115*mm, height - 168*mm, width - 135*mm, 20*mm, 5, fill=1, stroke=0)
     c.setFillColorRGB(0.62, 0.60, 0.58)
     c.setFont("Helvetica", 9)
-    c.drawString(125*mm, height - 153*mm, "TOTAL AMOUNT")
+    c.drawString(120*mm, height - 153*mm, "TOTAL AMOUNT")
     c.setFillColorRGB(0.91, 0.79, 0.48)
     c.setFont("Helvetica-Bold", 14)
-    c.drawRightString(width - 25*mm, height - 153*mm, f"Rs.{float(sale['total_amount']):,.2f}")
+    c.drawRightString(width - 20*mm, height - 153*mm, f"Rs.{float(sale['total_amount']):,.0f}")
 
-    # ── Thank you note
+    # ── Thank you
     c.setFillColorRGB(0.62, 0.60, 0.58)
     c.setFont("Helvetica", 8)
     c.drawCentredString(width/2, 45*mm, "Thank you for choosing Tara Adore. We hope you love your jewellery!")
-    
+
     # ── Footer
     c.setFillColorRGB(0.91, 0.79, 0.48)
     c.rect(0, 0, width, 25*mm, fill=1, stroke=0)
@@ -908,7 +913,7 @@ def download_invoice(sale_id):
     c.setFont("Helvetica-Bold", 8)
     c.drawCentredString(width/2, 14*mm, "TARA ADORE  ·  taraadore.in")
     c.setFont("Helvetica", 7)
-    c.drawCentredString(width/2, 8*mm, "Jewellery Analytics Platform  ·  © 2025 Tara Adore")
+    c.drawCentredString(width/2, 8*mm, "Jewellery Analytics Platform  ·  © 2026 Tara Adore")
 
     c.save()
     buffer.seek(0)
