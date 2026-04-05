@@ -48,10 +48,10 @@
                 <td><span class="badge badge-{{ s.payment_status|lower }}">{{ s.payment_status }}</span></td>
                 <td><span class="badge badge-{{ s.delivery_status|lower }}">{{ s.delivery_status }}</span></td>
                 <td>
-                   <a href="/invoice/{{ sale.id }}" 
-                   style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:linear-gradient(135deg,#E8C97A,#C9A84C);color:#000;font-weight:600;border-radius:8px;text-decoration:none;font-size:0.75rem;">
-        ⬇          Invoice
-                </a>
+                    <a href="/invoice/{{ s.id }}"
+                       style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:linear-gradient(135deg,#E8C97A,#C9A84C);color:#000;font-weight:600;border-radius:8px;text-decoration:none;font-size:0.75rem;">
+                        ⬇ Invoice
+                    </a>
                 </td>
             </tr>
             {% endfor %}
