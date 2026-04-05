@@ -65,9 +65,7 @@ def send_reset_email(to_email, reset_link):
         """
         msg.attach(MIMEText(html_body, 'html'))
         # Using port 587 with STARTTLS (works on Railway, port 465 is blocked)
-        with smtplib.SMTP('smtp.gmail.com', 587) as server:
-            server.ehlo()
-            server.starttls()
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
             server.ehlo()
             server.login(MAIL_USERNAME, MAIL_PASSWORD)
             server.sendmail(MAIL_USERNAME, to_email, msg.as_string())
