@@ -98,12 +98,17 @@
     </form>
     <p style="margin:10px 0 0;font-size:.72rem;color:var(--dim);line-height:1.6">
         Required columns: <code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px;color:var(--g2)">name, category, price, stock_quantity</code>
-        &nbsp;·&nbsp; Optional: <code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px;color:var(--g2)">material, weight_grams, description</code>
+        &nbsp;·&nbsp; Optional: <code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px;color:var(--g2)">material, weight_grams, description, cost_price</code>
     </p>
 </div>
 
-<!-- ADD PRODUCT BUTTON -->
-<div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+<!-- ADD PRODUCT BUTTON + PROFIT MARGIN LINK -->
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <a href="/insights"
+       style="display:flex;align-items:center;gap:7px;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.25);border-radius:8px;color:var(--g2);padding:8px 16px;font-size:.82rem;font-weight:600;text-decoration:none">
+        <i class="fas fa-chart-pie"></i> Business Insights
+        <span style="font-size:.68rem;background:rgba(201,168,76,0.2);padding:2px 7px;border-radius:10px;margin-left:4px">NEW</span>
+    </a>
     <button onclick="document.getElementById('addModal').style.display='flex'"
             class="btn btn-gold">
         <i class="fas fa-plus"></i> Add Product
@@ -115,7 +120,7 @@
     <div class="card-hd">
         <div>
             <div class="card-ttl">All Products</div>
-            <div class="card-sub">Complete jewellery catalog with performance data</div>
+            <div class="card-sub">Complete jewellery catalog with performance & profit data</div>
         </div>
         <span class="badge badge-live">{{ products|length }} Items</span>
     </div>
@@ -127,7 +132,9 @@
                 <th>Category</th>
                 <th>Material</th>
                 <th>Weight</th>
-                <th>Price</th>
+                <th>Cost Price</th>
+                <th>Sell Price</th>
+                <th>Margin</th>
                 <th>Stock</th>
                 <th>Total Sold</th>
                 <th>Revenue</th>
@@ -140,21 +147,44 @@
             <tr>
                 <td style="color:var(--dim)">#{{ p.id }}</td>
                 <td style="color:var(--text);font-weight:500">{{ p.name }}</td>
-                <td>
-                    <span class="badge badge-shipped">{{ p.category }}</span>
-                </td>
+                <td><span class="badge badge-shipped">{{ p.category }}</span></td>
                 <td style="color:var(--muted)">{{ p.material }}</td>
                 <td style="color:var(--muted)">{{ p.weight_grams }}g</td>
+
+                <!-- COST PRICE — inline editable -->
+                <td>
+                    {% if p.cost_price %}
+                    <span style="color:var(--muted);font-size:.82rem">₹{{ "{:,.0f}".format(p.cost_price) }}</span>
+                    {% else %}
+                    <button onclick="showCostModal({{ p.id }}, '{{ p.name }}')"
+                            style="background:rgba(201,168,76,0.1);border:1px dashed rgba(201,168,76,0.35);border-radius:5px;color:var(--g2);padding:3px 8px;font-size:.72rem;cursor:pointer">
+                        + Set Cost
+                    </button>
+                    {% endif %}
+                </td>
+
+                <!-- SELLING PRICE -->
                 <td style="color:var(--g2);font-weight:500">₹{{ "{:,.0f}".format(p.price) }}</td>
+
+                <!-- MARGIN -->
+                <td>
+                    {% if p.cost_price and p.cost_price > 0 %}
+                        {% set margin = ((p.price - p.cost_price) / p.price * 100)|round(1) %}
+                        <span style="color:{% if margin >= 40 %}var(--success){% elif margin >= 20 %}var(--g2){% else %}var(--danger){% endif %};font-weight:600;font-size:.82rem">
+                            {{ margin }}%
+                        </span>
+                    {% else %}
+                    <span style="color:var(--dim);font-size:.75rem">—</span>
+                    {% endif %}
+                </td>
+
                 <td>
                     <span style="color:{% if p.stock_quantity > 5 %}var(--success){% elif p.stock_quantity > 0 %}var(--g2){% else %}var(--danger){% endif %}">
                         {{ p.stock_quantity }}
                     </span>
                 </td>
                 <td style="color:var(--info)">{{ p.total_sold or 0 }}</td>
-                <td style="color:var(--g2);font-weight:500">
-                    ₹{{ "{:,.0f}".format(p.total_revenue or 0) }}
-                </td>
+                <td style="color:var(--g2);font-weight:500">₹{{ "{:,.0f}".format(p.total_revenue or 0) }}</td>
                 <td>
                     {% if p.stock_quantity > 5 %}
                     <span class="badge badge-paid">In Stock</span>
@@ -175,7 +205,7 @@
             {% endfor %}
             {% if products|length == 0 %}
             <tr>
-                <td colspan="11" style="text-align:center;padding:32px;color:var(--dim)">
+                <td colspan="13" style="text-align:center;padding:32px;color:var(--dim)">
                     <i class="fas fa-search" style="font-size:1.5rem;margin-bottom:8px;display:block"></i>
                     No products found. <a href="/products" style="color:var(--g2)">Clear filters</a>
                 </td>
@@ -187,7 +217,7 @@
 
 <!-- ADD PRODUCT MODAL -->
 <div id="addModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:999;align-items:center;justify-content:center">
-    <div style="background:#111;border:1px solid var(--border);border-radius:18px;padding:36px;width:520px;max-width:95vw;position:relative;animation:fadeUp .3s ease">
+    <div style="background:#111;border:1px solid var(--border);border-radius:18px;padding:36px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;position:relative;animation:fadeUp .3s ease">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
             <div>
                 <div style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:600">Add New Product</div>
@@ -235,8 +265,19 @@
                     <input type="number" name="weight_grams" class="form-control" placeholder="e.g. 5.5" step="0.1" required>
                 </div>
                 <div class="form-group">
-                    <label>Price (₹)</label>
+                    <label>Cost Price (₹) <span style="color:var(--g2);font-size:.7rem">for profit tracking</span></label>
+                    <input type="number" name="cost_price" class="form-control" placeholder="e.g. 18000 (your purchase cost)">
+                </div>
+                <div class="form-group">
+                    <label>Selling Price (₹)</label>
                     <input type="number" name="price" class="form-control" placeholder="e.g. 25000" required>
+                </div>
+                <div class="form-group" id="marginPreviewBox" style="display:none;grid-column:span 2;background:rgba(201,168,76,0.07);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:12px">
+                    <div style="font-size:.75rem;color:var(--muted);margin-bottom:4px">Profit Margin Preview</div>
+                    <div style="display:flex;gap:20px;align-items:center">
+                        <div><span style="color:var(--dim);font-size:.72rem">Profit Amount</span><br><span id="previewAmount" style="color:var(--g2);font-weight:600;font-size:1rem">—</span></div>
+                        <div><span style="color:var(--dim);font-size:.72rem">Margin %</span><br><span id="previewPct" style="font-weight:600;font-size:1rem">—</span></div>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>Stock Quantity</label>
@@ -259,36 +300,75 @@
     </div>
 </div>
 
-<!-- ALERT STYLES -->
+<!-- SET COST PRICE MODAL -->
+<div id="costModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:1000;align-items:center;justify-content:center">
+    <div style="background:#111;border:1px solid var(--border);border-radius:16px;padding:28px;width:360px;max-width:95vw;animation:fadeUp .3s ease">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+            <div>
+                <div style="font-size:1rem;font-weight:600;color:var(--text)">Set Cost Price</div>
+                <div id="costProductName" style="font-size:.75rem;color:var(--muted);margin-top:2px"></div>
+            </div>
+            <button onclick="document.getElementById('costModal').style.display='none'"
+                    style="background:none;border:none;color:var(--muted);font-size:1.1rem;cursor:pointer"><i class="fas fa-times"></i></button>
+        </div>
+        <form method="POST" action="/update_product_cost">
+            <input type="hidden" name="product_id" id="costProductId">
+            <div class="form-group" style="margin-bottom:16px">
+                <label style="font-size:.8rem;color:var(--muted);margin-bottom:6px;display:block">Your purchase / manufacturing cost (₹)</label>
+                <input type="number" name="cost_price" class="form-control" placeholder="e.g. 18000" step="0.01" required style="font-size:1rem">
+                <div style="font-size:.72rem;color:var(--dim);margin-top:6px">This is used to calculate actual profit margins</div>
+            </div>
+            <div style="display:flex;gap:10px;justify-content:flex-end">
+                <button type="button" onclick="document.getElementById('costModal').style.display='none'" class="btn btn-outline" style="padding:8px 16px;font-size:.82rem">Cancel</button>
+                <button type="submit" class="btn btn-gold" style="padding:8px 16px;font-size:.82rem"><i class="fas fa-save"></i> Save Cost</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- STYLES -->
 <style>
 .ta-alert {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 18px;
-    border-radius: 10px;
-    margin-bottom: 16px;
-    font-size: .83rem;
-    font-weight: 500;
-    position: relative;
+    display: flex; align-items: center; gap: 10px; padding: 12px 18px;
+    border-radius: 10px; margin-bottom: 16px; font-size: .83rem; font-weight: 500; position: relative;
 }
-.ta-alert-success {
-    background: rgba(40,167,69,0.1);
-    border: 1px solid rgba(40,167,69,0.3);
-    color: #4caf7d;
-}
-.ta-alert-error {
-    background: rgba(220,53,69,0.1);
-    border: 1px solid rgba(220,53,69,0.3);
-    color: #f07070;
-}
-.ta-alert-close {
-    margin-left: auto;
-    cursor: pointer;
-    font-size: 1.1rem;
-    opacity: .6;
-    line-height: 1;
-}
+.ta-alert-success { background: rgba(40,167,69,0.1); border: 1px solid rgba(40,167,69,0.3); color: #4caf7d; }
+.ta-alert-error   { background: rgba(220,53,69,0.1);  border: 1px solid rgba(220,53,69,0.3);  color: #f07070; }
+.ta-alert-close   { margin-left: auto; cursor: pointer; font-size: 1.1rem; opacity: .6; line-height: 1; }
 .ta-alert-close:hover { opacity: 1; }
 </style>
+
+<script>
+function showCostModal(id, name) {
+    document.getElementById('costProductId').value = id;
+    document.getElementById('costProductName').textContent = name;
+    document.getElementById('costModal').style.display = 'flex';
+}
+
+// Live margin preview in Add Product modal
+(function() {
+    const costInput  = document.querySelector('input[name="cost_price"]');
+    const priceInput = document.querySelector('input[name="price"]');
+    if (!costInput || !priceInput) return;
+
+    function update() {
+        const cost  = parseFloat(costInput.value);
+        const price = parseFloat(priceInput.value);
+        const box   = document.getElementById('marginPreviewBox');
+        if (cost > 0 && price > 0) {
+            const profit = price - cost;
+            const pct    = (profit / price * 100).toFixed(1);
+            box.style.display = 'block';
+            document.getElementById('previewAmount').textContent = '₹' + profit.toLocaleString('en-IN');
+            const pctEl = document.getElementById('previewPct');
+            pctEl.textContent = pct + '%';
+            pctEl.style.color = pct >= 40 ? 'var(--success)' : pct >= 20 ? 'var(--g2)' : 'var(--danger)';
+        } else {
+            box.style.display = 'none';
+        }
+    }
+    costInput.addEventListener('input', update);
+    priceInput.addEventListener('input', update);
+})();
+</script>
 {% endblock %}
