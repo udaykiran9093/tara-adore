@@ -6,9 +6,7 @@ import os
 import csv
 import io
 import secrets
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import resend
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
@@ -31,10 +29,8 @@ def get_db():
 
 def send_reset_email(to_email, reset_link):
     try:
-        msg = MIMEMultipart('alternative')
-        msg['Subject'] = 'Tara Adore — Password Reset Request'
-        msg['From']    = f'Tara Adore <{MAIL_USERNAME}>'
-        msg['To']      = to_email
+        import resend
+        resend.api_key = os.environ.get('RESEND_API_KEY')
         html_body = f"""
         <!DOCTYPE html><html>
         <body style="margin:0;padding:0;background:#050505;font-family:sans-serif">
@@ -63,19 +59,19 @@ def send_reset_email(to_email, reset_link):
         </div>
         </body></html>
         """
-        msg.attach(MIMEText(html_body, 'html'))
-        # Using port 587 with STARTTLS (works on Railway, port 465 is blocked)
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.ehlo()
-            server.login(MAIL_USERNAME, MAIL_PASSWORD)
-            server.sendmail(MAIL_USERNAME, to_email, msg.as_string())
+        resend.Emails.send({
+            "from": "Tara Adore <onboarding@resend.dev>",
+            "to": to_email,
+            "subject": "Tara Adore — Password Reset Request",
+            "html": html_body
+        })
         return True
     except Exception as e:
-       print(f"EMAIL ERROR TYPE: {type(e).__name__}")
-       print(f"EMAIL ERROR DETAIL: {e}")
-       import traceback
-       traceback.print_exc()
-       return False
+        print(f"EMAIL ERROR TYPE: {type(e).__name__}")
+        print(f"EMAIL ERROR DETAIL: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 # ── LOGIN / LOGOUT ───────────────────────────────────────────────────────────
 @app.route('/')
