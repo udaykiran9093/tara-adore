@@ -892,13 +892,16 @@ def download_invoice(sale_id):
     c.line(25*mm, height - 145*mm, width - 20*mm, height - 145*mm)
 
     # ── Total box
-    c.setFillColorRGB(0.91, 0.79, 0.48, 0.1)
-    c.roundRect(115*mm, height - 168*mm, width - 135*mm, 20*mm, 5, fill=1, stroke=0)
-    c.setFillColorRGB(0.62, 0.60, 0.58)
-    c.setFont("Helvetica", 9)
-    c.drawString(120*mm, height - 153*mm, "TOTAL AMOUNT")
+    # ── Total box
+    c.setFillColorRGB(0.15, 0.12, 0.05)
+    c.roundRect(115*mm, height - 170*mm, width - 135*mm, 22*mm, 5, fill=1, stroke=0)
+    c.setStrokeColorRGB(0.91, 0.79, 0.48)
+    c.setLineWidth(1)
+    c.roundRect(115*mm, height - 170*mm, width - 135*mm, 22*mm, 5, fill=0, stroke=1)
     c.setFillColorRGB(0.91, 0.79, 0.48)
-    c.setFont("Helvetica-Bold", 14)
+    c.setFont("Helvetica-Bold", 8)
+    c.drawString(120*mm, height - 153*mm, "TOTAL AMOUNT")
+    c.setFont("Helvetica-Bold", 16)
     c.drawRightString(width - 20*mm, height - 153*mm, f"Rs.{float(sale['total_amount']):,.0f}")
 
     # ── Thank you
