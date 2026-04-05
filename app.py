@@ -147,7 +147,7 @@ def forgot_password():
                 (token, expiry, admin['id'])
             )
             db.commit()
-            reset_link = f"http://127.0.0.1:5000/reset-password/{token}"
+            reset_link = f"https://web-production-e471e.up.railway.app/reset-password/{token}"
             sent = send_reset_email(email, reset_link)
             if sent:
                 success = f'Reset link sent to <strong>{email}</strong>. Check your inbox!'
