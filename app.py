@@ -23,8 +23,8 @@ DB_CONFIG = {
     'cursorclass': pymysql.cursors.DictCursor
 }
 
-MAIL_USERNAME = 'your_gmail@gmail.com'
-MAIL_PASSWORD = 'your_16char_app_password'
+MAIL_USERNAME = os.environ.get('MAIL_USERNAME', 'udaykirandokku007@gmail.com')
+MAIL_PASSWORD = os.environ.get('MAIL_PASSWORD', 'vzabovucblmvliji')
 
 def get_db():
     return pymysql.connect(**DB_CONFIG)
