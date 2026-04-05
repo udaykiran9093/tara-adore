@@ -233,19 +233,49 @@ def dashboard():
 def sales():
     if 'admin' not in session:
         return redirect('/login')
-    db = get_db()
+
+    search     = request.args.get('search', '').strip()
+    date_from  = request.args.get('date_from', '').strip()
+    date_to    = request.args.get('date_to', '').strip()
+    pay_status = request.args.get('payment_status', '').strip()
+
+    db  = get_db()
     cur = db.cursor()
-    cur.execute("""
+
+    where_parts = []
+    params      = []
+    if search:
+        where_parts.append("(c.name LIKE %s OR p.name LIKE %s)")
+        params += [f"%{search}%", f"%{search}%"]
+    if date_from:
+        where_parts.append("s.sale_date >= %s")
+        params.append(date_from)
+    if date_to:
+        where_parts.append("s.sale_date <= %s")
+        params.append(date_to)
+    if pay_status:
+        where_parts.append("s.payment_status = %s")
+        params.append(pay_status)
+    where_sql = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
+
+    cur.execute(f"""
         SELECT s.id, c.name, p.name as product, s.quantity,
                s.total_amount, s.sale_date, s.payment_status, s.delivery_status
         FROM sales s
         JOIN customers c ON s.customer_id = c.id
-        JOIN products p ON s.product_id = p.id
+        JOIN products p  ON s.product_id  = p.id
+        {where_sql}
         ORDER BY s.sale_date DESC
-    """)
+    """, params)
     all_sales = cur.fetchall()
     db.close()
-    return render_template('sales.html', sales=all_sales)
+
+    return render_template('sales.html',
+                           sales=all_sales,
+                           search=search,
+                           date_from=date_from,
+                           date_to=date_to,
+                           selected_payment=pay_status)
 
 @app.route('/add_sale', methods=['POST'])
 def add_sale():
@@ -274,20 +304,44 @@ def add_sale():
 def customers():
     if 'admin' not in session:
         return redirect('/login')
-    db = get_db()
+
+    search = request.args.get('search', '').strip()
+    city   = request.args.get('city', '').strip()
+
+    db  = get_db()
     cur = db.cursor()
-    cur.execute("""
+
+    where_parts = []
+    params      = []
+    if search:
+        where_parts.append("(c.name LIKE %s OR c.email LIKE %s OR c.phone LIKE %s)")
+        params += [f"%{search}%", f"%{search}%", f"%{search}%"]
+    if city:
+        where_parts.append("c.city = %s")
+        params.append(city)
+    where_sql = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
+
+    cur.execute(f"""
         SELECT c.id, c.name, c.email, c.phone, c.city,
-               COUNT(s.id) as total_orders,
-               COALESCE(SUM(s.total_amount), 0) as total_spent
+               COUNT(s.id)                       as total_orders,
+               COALESCE(SUM(s.total_amount), 0)  as total_spent
         FROM customers c
         LEFT JOIN sales s ON c.id = s.customer_id
+        {where_sql}
         GROUP BY c.id, c.name, c.email, c.phone, c.city
         ORDER BY total_spent DESC
-    """)
+    """, params)
     all_customers = cur.fetchall()
+
+    cur.execute("SELECT DISTINCT city FROM customers WHERE city IS NOT NULL AND city != '' ORDER BY city")
+    cities = [row['city'] for row in cur.fetchall()]
     db.close()
-    return render_template('customers.html', customers=all_customers)
+
+    return render_template('customers.html',
+                           customers=all_customers,
+                           cities=cities,
+                           search=search,
+                           selected_city=city)
 
 @app.route('/add_customer', methods=['POST'])
 def add_customer():
@@ -309,19 +363,36 @@ def add_customer():
 def products():
     if 'admin' not in session:
         return redirect('/login')
-    db = get_db()
+
+    search   = request.args.get('search', '').strip()
+    category = request.args.get('category', '').strip()
+
+    db  = get_db()
     cur = db.cursor()
-    cur.execute("""
+
+    where_parts = []
+    params      = []
+    if search:
+        where_parts.append("(p.name LIKE %s OR p.material LIKE %s)")
+        params += [f"%{search}%", f"%{search}%"]
+    if category:
+        where_parts.append("p.category = %s")
+        params.append(category)
+    where_sql = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
+
+    cur.execute(f"""
         SELECT p.id, p.name, p.category, p.material,
                p.weight_grams, p.price, p.stock_quantity,
                COUNT(s.id) as total_sold,
                COALESCE(SUM(s.total_amount), 0) as total_revenue
         FROM products p
         LEFT JOIN sales s ON p.id = s.product_id
+        {where_sql}
         GROUP BY p.id, p.name, p.category, p.material, p.weight_grams, p.price, p.stock_quantity
         ORDER BY total_revenue DESC
-    """)
+    """, params)
     all_products = cur.fetchall()
+
     cur.execute("""
         SELECT category, COUNT(*) as product_count,
                SUM(stock_quantity) as total_stock, AVG(price) as avg_price
@@ -329,7 +400,12 @@ def products():
     """)
     categories = cur.fetchall()
     db.close()
-    return render_template('products.html', products=all_products, categories=categories)
+
+    return render_template('products.html',
+                           products=all_products,
+                           categories=categories,
+                           search=search,
+                           selected_category=category)
 
 @app.route('/add_product', methods=['POST'])
 def add_product():
@@ -357,6 +433,133 @@ def delete_product(id):
     db.commit()
     db.close()
     return redirect('/products')
+
+# ── BULK CSV IMPORT — PRODUCTS ───────────────────────────────────────────────
+@app.route('/import_products_csv', methods=['POST'])
+def import_products_csv():
+    if 'admin' not in session:
+        return redirect('/login')
+    file = request.files.get('csv_file')
+    if not file or not file.filename.endswith('.csv'):
+        return redirect('/products?import_error=Please+upload+a+valid+CSV+file')
+    try:
+        stream  = io.StringIO(file.stream.read().decode('utf-8-sig'), newline=None)
+        reader  = csv.DictReader(stream)
+        headers = {h.strip().lower() for h in (reader.fieldnames or [])}
+        required = {'name', 'category', 'price', 'stock_quantity'}
+        if not required.issubset(headers):
+            return redirect('/products?import_error=CSV+must+have:+name,category,price,stock_quantity')
+        db  = get_db()
+        cur = db.cursor()
+        inserted = 0
+        skipped  = 0
+        for i, row in enumerate(reader, start=2):
+            try:
+                name     = row.get('name', '').strip()
+                category = row.get('category', '').strip()
+                material = row.get('material', '').strip() or None
+                price    = float(row.get('price', 0) or 0)
+                stock    = int(row.get('stock_quantity', 0) or 0)
+                weight   = row.get('weight_grams', '').strip()
+                weight   = float(weight) if weight else None
+                desc     = row.get('description', '').strip() or ''
+                if not name or not category or price <= 0:
+                    skipped += 1
+                    continue
+                cur.execute("""
+                    INSERT INTO products
+                        (name, category, material, weight_grams, price, stock_quantity, description)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (name, category, material, weight, price, stock, desc))
+                inserted += 1
+            except Exception:
+                skipped += 1
+        db.commit()
+        db.close()
+        msg = f"Imported+{inserted}+products"
+        if skipped:
+            msg += f",+{skipped}+skipped"
+        return redirect(f'/products?import_success={msg}')
+    except Exception as e:
+        return redirect(f'/products?import_error=Import+failed:+{str(e)[:80]}')
+
+# ── BULK CSV IMPORT — CUSTOMERS ──────────────────────────────────────────────
+@app.route('/import_customers_csv', methods=['POST'])
+def import_customers_csv():
+    if 'admin' not in session:
+        return redirect('/login')
+    file = request.files.get('csv_file')
+    if not file or not file.filename.endswith('.csv'):
+        return redirect('/customers?import_error=Please+upload+a+valid+CSV+file')
+    try:
+        stream  = io.StringIO(file.stream.read().decode('utf-8-sig'), newline=None)
+        reader  = csv.DictReader(stream)
+        headers = {h.strip().lower() for h in (reader.fieldnames or [])}
+        if not {'name', 'email'}.issubset(headers):
+            return redirect('/customers?import_error=CSV+must+have:+name,email')
+        db  = get_db()
+        cur = db.cursor()
+        inserted = 0
+        skipped  = 0
+        for i, row in enumerate(reader, start=2):
+            try:
+                name    = row.get('name', '').strip()
+                email   = row.get('email', '').strip()
+                phone   = row.get('phone', '').strip()   or None
+                city    = row.get('city', '').strip()    or None
+                state   = row.get('state', '').strip()   or None
+                pincode = row.get('pincode', '').strip()  or None
+                if not name or not email:
+                    skipped += 1
+                    continue
+                cur.execute("SELECT id FROM customers WHERE LOWER(email)=LOWER(%s)", (email,))
+                if cur.fetchone():
+                    skipped += 1
+                    continue
+                cur.execute("""
+                    INSERT INTO customers (name, email, phone, city, state, pincode)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (name, email, phone, city, state, pincode))
+                inserted += 1
+            except Exception:
+                skipped += 1
+        db.commit()
+        db.close()
+        msg = f"Imported+{inserted}+customers"
+        if skipped:
+            msg += f",+{skipped}+skipped+(duplicates+or+invalid)"
+        return redirect(f'/customers?import_success={msg}')
+    except Exception as e:
+        return redirect(f'/customers?import_error=Import+failed:+{str(e)[:80]}')
+
+# ── CSV TEMPLATES ─────────────────────────────────────────────────────────────
+@app.route('/template/products')
+def products_csv_template():
+    if 'admin' not in session:
+        return redirect('/login')
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['name', 'category', 'material', 'weight_grams', 'price', 'stock_quantity', 'description'])
+    writer.writerow(['Gold Necklace', 'Necklace', '22K Gold', '12.5', '45000', '10', 'Traditional design'])
+    writer.writerow(['Diamond Ring', 'Ring', 'Platinum', '4.2', '85000', '5', 'Solitaire cut'])
+    response = make_response(output.getvalue())
+    response.headers['Content-Disposition'] = 'attachment; filename=tara_adore_products_template.csv'
+    response.headers['Content-type'] = 'text/csv'
+    return response
+
+@app.route('/template/customers')
+def customers_csv_template():
+    if 'admin' not in session:
+        return redirect('/login')
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['name', 'email', 'phone', 'city', 'state', 'pincode'])
+    writer.writerow(['Priya Sharma', 'priya@example.com', '9876543210', 'Hyderabad', 'Telangana', '500001'])
+    writer.writerow(['Rahul Mehta', 'rahul@example.com', '9123456780', 'Mumbai', 'Maharashtra', '400001'])
+    response = make_response(output.getvalue())
+    response.headers['Content-Disposition'] = 'attachment; filename=tara_adore_customers_template.csv'
+    response.headers['Content-type'] = 'text/csv'
+    return response
 
 # ── REPORTS ──────────────────────────────────────────────────────────────────
 @app.route('/reports')
@@ -795,32 +998,21 @@ def download_invoice(sale_id):
     c = canvas.Canvas(buffer, pagesize=A4)
     width, height = A4
 
-    # ── Background
     c.setFillColorRGB(0.02, 0.02, 0.02)
     c.rect(0, 0, width, height, fill=1, stroke=0)
-
-    # ── Gold header bar
     c.setFillColorRGB(0.91, 0.79, 0.48)
     c.rect(0, height - 60*mm, width, 60*mm, fill=1, stroke=0)
-
-    # ── Brand name
     c.setFillColorRGB(0.05, 0.05, 0.05)
     c.setFont("Helvetica-Bold", 28)
     c.drawString(20*mm, height - 25*mm, "TARA ADORE")
     c.setFont("Helvetica", 9)
     c.drawString(20*mm, height - 33*mm, "JEWELLERY ANALYTICS PLATFORM")
-
-    # ── Invoice label
     c.setFont("Helvetica-Bold", 20)
     c.drawRightString(width - 20*mm, height - 25*mm, "INVOICE")
     c.setFont("Helvetica", 9)
     c.drawRightString(width - 20*mm, height - 33*mm, f"# TA-{sale['id']:05d}")
-
-    # ── Card area
     c.setFillColorRGB(0.08, 0.08, 0.08)
     c.roundRect(15*mm, 30*mm, width - 30*mm, height - 75*mm, 8, fill=1, stroke=0)
-
-    # ── Bill To
     c.setFillColorRGB(0.91, 0.79, 0.48)
     c.setFont("Helvetica-Bold", 8)
     c.drawString(25*mm, height - 75*mm, "BILL TO")
@@ -831,8 +1023,6 @@ def download_invoice(sale_id):
     c.setFont("Helvetica", 9)
     c.drawString(25*mm, height - 91*mm, f"Phone: {sale['phone'] or 'N/A'}")
     c.drawString(25*mm, height - 97*mm, f"{sale['city'] or ''}, {sale['state'] or ''} - {sale['pincode'] or ''}")
-
-    # ── Invoice details right side
     c.setFillColorRGB(0.91, 0.79, 0.48)
     c.setFont("Helvetica-Bold", 8)
     c.drawRightString(width - 25*mm, height - 75*mm, "INVOICE DETAILS")
@@ -842,21 +1032,15 @@ def download_invoice(sale_id):
     c.drawRightString(width - 25*mm, height - 84*mm, f"Date: {sale_date}")
     c.drawRightString(width - 25*mm, height - 91*mm, f"Payment: {sale['payment_status']}")
     c.drawRightString(width - 25*mm, height - 97*mm, f"Delivery: {sale['delivery_status']}")
-
-    # ── Divider
     c.setStrokeColorRGB(0.91, 0.79, 0.48, 0.3)
     c.setLineWidth(0.5)
     c.line(25*mm, height - 108*mm, width - 25*mm, height - 108*mm)
-
-    # ── Column positions (fixed, no overlap)
     COL_PRODUCT  = 25*mm
     COL_MATERIAL = 90*mm
     COL_WEIGHT   = 125*mm
     COL_QTY      = 148*mm
-    COL_UNIT     = 168*mm   # right-aligned
-    COL_TOTAL    = width - 20*mm  # right-aligned
-
-    # ── Table header
+    COL_UNIT     = 168*mm
+    COL_TOTAL    = width - 20*mm
     c.setFillColorRGB(0.91, 0.79, 0.48)
     c.setFont("Helvetica-Bold", 8)
     c.drawString(COL_PRODUCT,  height - 117*mm, "PRODUCT")
@@ -865,16 +1049,11 @@ def download_invoice(sale_id):
     c.drawString(COL_QTY,      height - 117*mm, "QTY")
     c.drawRightString(COL_UNIT,  height - 117*mm, "UNIT PRICE")
     c.drawRightString(COL_TOTAL, height - 117*mm, "TOTAL")
-
-    # ── Header underline
     c.setStrokeColorRGB(0.91, 0.79, 0.48, 0.5)
     c.line(25*mm, height - 120*mm, width - 20*mm, height - 120*mm)
-
-    # ── Table row (each column drawn ONCE only)
     c.setFillColorRGB(0.94, 0.93, 0.89)
     c.setFont("Helvetica-Bold", 10)
     c.drawString(COL_PRODUCT, height - 130*mm, str(sale['product_name']))
-
     c.setFillColorRGB(0.62, 0.60, 0.58)
     c.setFont("Helvetica", 9)
     c.drawString(COL_PRODUCT,  height - 138*mm, str(sale['category']))
@@ -882,17 +1061,11 @@ def download_invoice(sale_id):
     c.drawString(COL_WEIGHT,   height - 130*mm, f"{sale['weight_grams']}g" if sale['weight_grams'] else 'N/A')
     c.drawString(COL_QTY,      height - 130*mm, str(sale['quantity']))
     c.drawRightString(COL_UNIT, height - 130*mm, f"Rs.{float(sale['unit_price']):,.0f}")
-
     c.setFillColorRGB(0.91, 0.79, 0.48)
     c.setFont("Helvetica-Bold", 10)
     c.drawRightString(COL_TOTAL, height - 130*mm, f"Rs.{float(sale['total_amount']):,.0f}")
-
-    # ── Row divider
     c.setStrokeColorRGB(0.91, 0.79, 0.48, 0.3)
     c.line(25*mm, height - 145*mm, width - 20*mm, height - 145*mm)
-
-    # ── Total box
-    # ── Total box
     c.setFillColorRGB(0.15, 0.12, 0.05)
     c.roundRect(115*mm, height - 170*mm, width - 135*mm, 22*mm, 5, fill=1, stroke=0)
     c.setStrokeColorRGB(0.91, 0.79, 0.48)
@@ -903,13 +1076,9 @@ def download_invoice(sale_id):
     c.drawString(120*mm, height - 153*mm, "TOTAL AMOUNT")
     c.setFont("Helvetica-Bold", 16)
     c.drawRightString(width - 20*mm, height - 153*mm, f"Rs.{float(sale['total_amount']):,.0f}")
-
-    # ── Thank you
     c.setFillColorRGB(0.62, 0.60, 0.58)
     c.setFont("Helvetica", 8)
     c.drawCentredString(width/2, 45*mm, "Thank you for choosing Tara Adore. We hope you love your jewellery!")
-
-    # ── Footer
     c.setFillColorRGB(0.91, 0.79, 0.48)
     c.rect(0, 0, width, 25*mm, fill=1, stroke=0)
     c.setFillColorRGB(0.05, 0.05, 0.05)
@@ -917,7 +1086,6 @@ def download_invoice(sale_id):
     c.drawCentredString(width/2, 14*mm, "TARA ADORE  ·  taraadore.in")
     c.setFont("Helvetica", 7)
     c.drawCentredString(width/2, 8*mm, "Jewellery Analytics Platform  ·  © 2026 Tara Adore")
-
     c.save()
     buffer.seek(0)
 

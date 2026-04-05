@@ -43,6 +43,85 @@
     </div>
 </div>
 
+<!-- FLASH MESSAGES -->
+{% if request.args.get('import_success') %}
+<div class="ta-alert ta-alert-success" id="importAlert">
+    <i class="fas fa-check-circle"></i>
+    {{ request.args.get('import_success') | replace('+', ' ') }}
+    <span class="ta-alert-close" onclick="document.getElementById('importAlert').remove()">×</span>
+</div>
+{% endif %}
+{% if request.args.get('import_error') %}
+<div class="ta-alert ta-alert-error" id="importAlert">
+    <i class="fas fa-exclamation-triangle"></i>
+    {{ request.args.get('import_error') | replace('+', ' ') }}
+    <span class="ta-alert-close" onclick="document.getElementById('importAlert').remove()">×</span>
+</div>
+{% endif %}
+
+<!-- SEARCH + FILTER BAR -->
+<form method="GET" action="/customers" style="margin-bottom:14px">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+        <div style="position:relative;display:flex;align-items:center">
+            <i class="fas fa-search" style="position:absolute;left:11px;color:var(--g2);font-size:.72rem;pointer-events:none"></i>
+            <input type="text" name="search" placeholder="Search name, email, phone…"
+                   value="{{ search or '' }}"
+                   style="background:rgba(255,255,255,0.04);border:1px solid rgba(201,168,76,0.2);border-radius:8px;color:var(--text);padding:8px 12px 8px 30px;font-size:.82rem;min-width:230px;outline:none">
+        </div>
+        <select name="city"
+                style="background:rgba(255,255,255,0.04);border:1px solid rgba(201,168,76,0.2);border-radius:8px;color:var(--text);padding:8px 12px;font-size:.82rem;outline:none;cursor:pointer">
+            <option value="">All Cities</option>
+            {% for c in cities %}
+            <option value="{{ c }}" {% if selected_city == c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit"
+                style="background:linear-gradient(135deg,#E8C97A,#C9A84C);color:#000;border:none;border-radius:8px;padding:8px 18px;font-size:.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+            <i class="fas fa-filter"></i> Filter
+        </button>
+        {% if search or selected_city %}
+        <a href="/customers"
+           style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:var(--muted);padding:8px 14px;font-size:.82rem;text-decoration:none;display:flex;align-items:center;gap:5px">
+            <i class="fas fa-times"></i> Clear
+        </a>
+        {% endif %}
+        <span style="font-size:.75rem;color:var(--dim);margin-left:4px">
+            {{ customers|length }} customer(s) found
+        </span>
+    </div>
+</form>
+
+<!-- BULK CSV IMPORT -->
+<div style="background:rgba(201,168,76,0.04);border:1px solid rgba(201,168,76,0.15);border-radius:12px;padding:16px 20px;margin-bottom:18px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <i class="fas fa-file-csv" style="color:var(--g2);font-size:1rem"></i>
+        <span style="font-size:.85rem;font-weight:600;color:var(--g2)">Bulk Import Customers via CSV</span>
+        <a href="/template/customers"
+           style="margin-left:auto;font-size:.75rem;color:var(--muted);text-decoration:none;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:4px 10px;display:flex;align-items:center;gap:5px">
+            <i class="fas fa-download"></i> Download Template
+        </a>
+    </div>
+    <form method="POST" action="/import_customers_csv" enctype="multipart/form-data"
+          style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.05);border:1px dashed rgba(201,168,76,0.3);border-radius:8px;padding:9px 16px;cursor:pointer;font-size:.82rem;color:var(--muted)">
+            <i class="fas fa-upload"></i>
+            <span id="custFileLabel">Choose CSV file…</span>
+            <input type="file" name="csv_file" accept=".csv" required style="display:none"
+                   onchange="document.getElementById('custFileLabel').textContent=this.files[0].name">
+        </label>
+        <button type="submit"
+                style="background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.4);border-radius:8px;color:var(--g2);padding:9px 18px;font-size:.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+            <i class="fas fa-cloud-upload-alt"></i> Import
+        </button>
+    </form>
+    <p style="margin:10px 0 0;font-size:.72rem;color:var(--dim);line-height:1.6">
+        Required: <code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px;color:var(--g2)">name, email</code>
+        &nbsp;·&nbsp; Optional: <code style="background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:4px;color:var(--g2)">phone, city, state, pincode</code>
+        &nbsp;·&nbsp; Duplicate emails are automatically skipped.
+    </p>
+</div>
+
+<!-- ADD CUSTOMER BUTTON -->
 <div style="display:flex;justify-content:flex-end;margin-bottom:16px">
     <button onclick="document.getElementById('custModal').style.display='flex'" class="btn btn-gold">
         <i class="fas fa-plus"></i> Add Customer
@@ -89,6 +168,14 @@
                 </td>
             </tr>
             {% endfor %}
+            {% if customers|length == 0 %}
+            <tr>
+                <td colspan="8" style="text-align:center;padding:32px;color:var(--dim)">
+                    <i class="fas fa-search" style="font-size:1.5rem;margin-bottom:8px;display:block"></i>
+                    No customers found. <a href="/customers" style="color:var(--g2)">Clear filters</a>
+                </td>
+            </tr>
+            {% endif %}
         </tbody>
     </table>
 </div>
@@ -145,4 +232,37 @@
         </form>
     </div>
 </div>
+
+<!-- ALERT STYLES -->
+<style>
+.ta-alert {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 18px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    font-size: .83rem;
+    font-weight: 500;
+    position: relative;
+}
+.ta-alert-success {
+    background: rgba(40,167,69,0.1);
+    border: 1px solid rgba(40,167,69,0.3);
+    color: #4caf7d;
+}
+.ta-alert-error {
+    background: rgba(220,53,69,0.1);
+    border: 1px solid rgba(220,53,69,0.3);
+    color: #f07070;
+}
+.ta-alert-close {
+    margin-left: auto;
+    cursor: pointer;
+    font-size: 1.1rem;
+    opacity: .6;
+    line-height: 1;
+}
+.ta-alert-close:hover { opacity: 1; }
+</style>
 {% endblock %}

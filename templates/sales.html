@@ -8,12 +8,73 @@
     <p>Complete transaction history for Tara Adore</p>
 </div>
 
-<div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+<!-- SEARCH + FILTER BAR -->
+<form method="GET" action="/sales" style="margin-bottom:14px">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+
+        <!-- Search -->
+        <div style="position:relative;display:flex;align-items:center">
+            <i class="fas fa-search" style="position:absolute;left:11px;color:var(--g2);font-size:.72rem;pointer-events:none"></i>
+            <input type="text" name="search" placeholder="Search customer or product…"
+                   value="{{ search or '' }}"
+                   style="background:rgba(255,255,255,0.04);border:1px solid rgba(201,168,76,0.2);border-radius:8px;color:var(--text);padding:8px 12px 8px 30px;font-size:.82rem;min-width:220px;outline:none">
+        </div>
+
+        <!-- Date From -->
+        <div style="display:flex;align-items:center;gap:6px">
+            <i class="fas fa-calendar-alt" style="color:var(--g2);font-size:.78rem"></i>
+            <input type="date" name="date_from" value="{{ date_from or '' }}"
+                   title="From date"
+                   style="background:rgba(255,255,255,0.04);border:1px solid rgba(201,168,76,0.2);border-radius:8px;color:var(--text);padding:8px 10px;font-size:.82rem;outline:none;color-scheme:dark">
+            <span style="color:var(--muted);font-size:.75rem">→</span>
+            <input type="date" name="date_to" value="{{ date_to or '' }}"
+                   title="To date"
+                   style="background:rgba(255,255,255,0.04);border:1px solid rgba(201,168,76,0.2);border-radius:8px;color:var(--text);padding:8px 10px;font-size:.82rem;outline:none;color-scheme:dark">
+        </div>
+
+        <!-- Payment Status -->
+        <select name="payment_status"
+                style="background:rgba(255,255,255,0.04);border:1px solid rgba(201,168,76,0.2);border-radius:8px;color:var(--text);padding:8px 12px;font-size:.82rem;outline:none;cursor:pointer">
+            <option value="">All Payments</option>
+            <option value="Paid"    {% if selected_payment == 'Paid' %}selected{% endif %}>Paid</option>
+            <option value="Pending" {% if selected_payment == 'Pending' %}selected{% endif %}>Pending</option>
+            <option value="Failed"  {% if selected_payment == 'Failed' %}selected{% endif %}>Failed</option>
+        </select>
+
+        <!-- Filter Button -->
+        <button type="submit"
+                style="background:linear-gradient(135deg,#E8C97A,#C9A84C);color:#000;border:none;border-radius:8px;padding:8px 18px;font-size:.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">
+            <i class="fas fa-filter"></i> Filter
+        </button>
+
+        <!-- Clear Button -->
+        {% if search or date_from or date_to or selected_payment %}
+        <a href="/sales"
+           style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);border-radius:8px;color:var(--muted);padding:8px 14px;font-size:.82rem;text-decoration:none;display:flex;align-items:center;gap:5px">
+            <i class="fas fa-times"></i> Clear
+        </a>
+        {% endif %}
+
+        <!-- Result count -->
+        <span style="font-size:.75rem;color:var(--dim);margin-left:4px">
+            {{ sales|length }} record(s) found
+        </span>
+
+    </div>
+</form>
+
+<!-- ADD SALE BUTTON + EXPORT -->
+<div style="display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px">
+    <a href="/export/sales"
+       style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:8px;color:var(--g2);font-size:.82rem;font-weight:600;text-decoration:none">
+        <i class="fas fa-download"></i> Export CSV
+    </a>
     <button onclick="document.getElementById('saleModal').style.display='flex'" class="btn btn-gold">
         <i class="fas fa-plus"></i> Add Sale
     </button>
 </div>
 
+<!-- SALES TABLE -->
 <div class="card">
     <div class="card-hd">
         <div>
@@ -55,10 +116,19 @@
                 </td>
             </tr>
             {% endfor %}
+            {% if sales|length == 0 %}
+            <tr>
+                <td colspan="9" style="text-align:center;padding:32px;color:var(--dim)">
+                    <i class="fas fa-search" style="font-size:1.5rem;margin-bottom:8px;display:block"></i>
+                    No sales found matching your filters. <a href="/sales" style="color:var(--g2)">Clear filters</a>
+                </td>
+            </tr>
+            {% endif %}
         </tbody>
     </table>
 </div>
 
+<!-- ADD SALE MODAL -->
 <div id="saleModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:999;align-items:center;justify-content:center">
     <div style="background:#111;border:1px solid var(--border);border-radius:18px;padding:36px;width:480px;max-width:95vw;animation:fadeUp .3s ease">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
