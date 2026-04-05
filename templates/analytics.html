@@ -1,0 +1,417 @@
+{% extends "base.html" %}
+{% block title %}Analytics{% endblock %}
+{% block topbar_title %}Advanced Analytics{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Advanced Analytics</h2>
+    <p>Heatmap · RFM Scoring · Dead Stock · Seasonal Trends · AI Advisor · Notifications</p>
+</div>
+
+<!-- NOTIFICATIONS PANEL -->
+{% if notifications %}
+<div style="margin-bottom:20px">
+    {% for n in notifications %}
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;
+                background:{% if n.type=='warning' %}rgba(224,92,92,0.08){% else %}rgba(78,203,141,0.08){% endif %};
+                border:1px solid {% if n.type=='warning' %}rgba(224,92,92,0.2){% else %}rgba(78,203,141,0.2){% endif %};
+                border-radius:10px;margin-bottom:10px;animation:fadeUp .4s ease both">
+        <i class="fas {{ n.icon }}" style="color:{% if n.type=='warning' %}var(--danger){% else %}var(--success){% endif %};font-size:1rem"></i>
+        <span style="font-size:.85rem;color:var(--text)">{{ n.message }}</span>
+        <span style="margin-left:auto;font-size:.65rem;color:var(--muted)">Just now</span>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- WEEKLY HEATMAP + AI ADVISOR -->
+<div class="grid-2" style="margin-bottom:18px">
+
+    <!-- WEEKLY HEATMAP -->
+    <div class="card">
+        <div class="card-hd">
+            <div>
+                <div class="card-ttl">Weekly Sales Heatmap</div>
+                <div class="card-sub">Revenue intensity by day of week</div>
+            </div>
+            <span class="badge badge-live">Live</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+            {% set days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'] %}
+            {% set revenues = [] %}
+            {% for day in days %}
+                {% for w in weekly_data %}
+                    {% if w.day_name == day %}
+                        {% if revenues.append(w.revenue) %}{% endif %}
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+            {% set max_rev = revenues|max if revenues else 1 %}
+            {% for day in days %}
+                {% set found_rev = namespace(value=0) %}
+                {% set found_orders = namespace(value=0) %}
+                {% for w in weekly_data %}
+                    {% if w.day_name == day %}
+                        {% set found_rev.value = w.revenue %}
+                        {% set found_orders.value = w.orders %}
+                    {% endif %}
+                {% endfor %}
+                {% set intensity = ((found_rev.value / max_rev) * 100)|int if max_rev > 0 else 0 %}
+                <div style="flex:1;min-width:70px;text-align:center">
+                    <div style="font-size:.58rem;color:var(--muted);letter-spacing:.08em;margin-bottom:8px;text-transform:uppercase">
+                        {{ day[:3] }}
+                    </div>
+                    <div style="height:80px;border-radius:8px;
+                                background:rgba(201,168,76,{{ [intensity/100, 0.05]|max }});
+                                border:1px solid rgba(201,168,76,{{ [intensity/100*0.4, 0.05]|max }});
+                                display:flex;align-items:center;justify-content:center;
+                                flex-direction:column;gap:4px;
+                                transition:transform .2s ease"
+                         onmouseover="this.style.transform='scale(1.06)'"
+                         onmouseout="this.style.transform='scale(1)'">
+                        {% if found_rev.value > 0 %}
+                        <div style="font-family:'Cormorant Garamond',serif;font-size:.9rem;font-weight:700;color:var(--g2)">
+                            ₹{{ "{:,.0f}".format(found_rev.value) }}
+                        </div>
+                        <div style="font-size:.56rem;color:var(--muted)">{{ found_orders.value }} orders</div>
+                        {% else %}
+                        <div style="font-size:.62rem;color:var(--dim)">No data</div>
+                        {% endif %}
+                    </div>
+                    <div style="height:3px;border-radius:2px;margin-top:6px;
+                                background:linear-gradient(90deg,var(--g3),var(--g2));
+                                width:{{ intensity }}%;margin-left:auto;margin-right:auto">
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:16px;justify-content:flex-end">
+            <span style="font-size:.6rem;color:var(--dim)">Low</span>
+            {% for i in range(5) %}
+            <div style="width:16px;height:16px;border-radius:3px;background:rgba(201,168,76,{{ 0.08 + i*0.18 }})"></div>
+            {% endfor %}
+            <span style="font-size:.6rem;color:var(--dim)">High</span>
+        </div>
+    </div>
+
+    <!-- AI ADVISOR -->
+    <div class="card" style="display:flex;flex-direction:column">
+        <div class="card-hd">
+            <div>
+                <div class="card-ttl">AI Business Advisor</div>
+                <div class="card-sub">Ask anything about your business</div>
+            </div>
+            <span class="badge" style="background:rgba(92,184,224,.1);color:#5cb8e0">
+                <i class="fas fa-robot"></i> AI
+            </span>
+        </div>
+
+        <div id="chatBox" style="flex:1;min-height:200px;max-height:200px;overflow-y:auto;
+                                  background:var(--dark3);border-radius:10px;padding:12px;
+                                  display:flex;flex-direction:column;gap:10px;margin-bottom:12px">
+            <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:26px;height:26px;border-radius:50%;
+                             background:linear-gradient(135deg,var(--g2),var(--g1));
+                             display:flex;align-items:center;justify-content:center;
+                             font-size:.6rem;color:#000;flex-shrink:0;font-weight:700">AI</div>
+                <div style="background:rgba(201,168,76,0.06);border:1px solid var(--border);
+                             border-radius:10px;padding:10px 14px;font-size:.8rem;
+                             color:var(--text);line-height:1.5">
+                    👋 Hello! I'm your AI Business Advisor for Tara Adore. Ask me about revenue, products, customers, or stock!
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+            {% for q in ['Best selling product?','My total revenue?','Low stock items?','Top customer?','Business advice?'] %}
+            <button onclick="askAI('{{ q }}')"
+                    style="background:rgba(201,168,76,0.06);border:1px solid var(--border);
+                           border-radius:20px;padding:4px 10px;font-size:.62rem;color:var(--muted);
+                           cursor:pointer;transition:all .2s;font-family:'DM Sans',sans-serif"
+                    onmouseover="this.style.borderColor='var(--g1)';this.style.color='var(--g2)'"
+                    onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+                {{ q }}
+            </button>
+            {% endfor %}
+        </div>
+
+        <div style="display:flex;gap:10px">
+            <input id="aiInput" type="text" class="form-control"
+                   placeholder="Ask your AI advisor..."
+                   onkeypress="if(event.key==='Enter') askAI()"
+                   style="flex:1;font-size:.82rem">
+            <button onclick="askAI()" class="btn btn-gold" style="padding:10px 16px;flex-shrink:0">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- RFM + DEAD STOCK -->
+<div class="grid-2" style="margin-bottom:18px">
+
+    <!-- RFM SCORING -->
+    <div class="card">
+        <div class="card-hd">
+            <div>
+                <div class="card-ttl">Customer RFM Scoring</div>
+                <div class="card-sub">Recency · Frequency · Monetary analysis</div>
+            </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+            {% for seg, col, icon in [('Champion','var(--g2)','👑'),('Loyal','var(--success)','⭐'),('At Risk','var(--danger)','😴'),('New','var(--info)','🆕')] %}
+            <span style="background:rgba(255,255,255,0.04);border:1px solid var(--border);
+                         border-radius:20px;padding:3px 10px;font-size:.62rem;color:{{ col }}">
+                {{ icon }} {{ seg }}
+            </span>
+            {% endfor %}
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Customer</th>
+                    <th>Recency</th>
+                    <th>Orders</th>
+                    <th>Spent</th>
+                    <th>Segment</th>
+                    <th>Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rfm_scored %}
+                <tr>
+                    <td style="color:var(--text);font-weight:500">{{ r.name }}</td>
+                    <td style="color:var(--muted)">
+                        {% if r.recency is not none %}{{ r.recency }}d{% else %}Never{% endif %}
+                    </td>
+                    <td style="color:var(--info)">{{ r.frequency }}</td>
+                    <td style="color:var(--g2);font-weight:500">₹{{ "{:,.0f}".format(r.monetary or 0) }}</td>
+                    <td>
+                        {% if r.segment == 'Champion' %}
+                        <span class="badge" style="background:rgba(201,168,76,.12);color:var(--g2)">👑 Champion</span>
+                        {% elif r.segment == 'Loyal' %}
+                        <span class="badge badge-paid">⭐ Loyal</span>
+                        {% elif r.segment == 'At Risk' %}
+                        <span class="badge badge-failed">😴 At Risk</span>
+                        {% else %}
+                        <span class="badge badge-delivered">🆕 New</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:6px">
+                            <div style="width:44px;height:4px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden">
+                                <div style="height:100%;width:{{ (r.score/9*100)|int }}%;
+                                            background:linear-gradient(90deg,var(--g3),var(--g1));border-radius:2px"></div>
+                            </div>
+                            <span style="font-size:.68rem;color:var(--muted)">{{ r.score }}/9</span>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- DEAD STOCK -->
+    <div class="card">
+        <div class="card-hd">
+            <div>
+                <div class="card-ttl">Dead Stock Alerts</div>
+                <div class="card-sub">Products not sold in 30+ days</div>
+            </div>
+            <span class="badge badge-failed">{{ dead_stock|length }} Items</span>
+        </div>
+        {% if dead_stock %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Category</th>
+                    <th>Stock</th>
+                    <th>Price</th>
+                    <th>Last Sold</th>
+                    <th>Alert</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in dead_stock %}
+                <tr>
+                    <td style="color:var(--text);font-weight:500">{{ p.name }}</td>
+                    <td><span class="badge badge-shipped">{{ p.category }}</span></td>
+                    <td style="color:var(--danger)">{{ p.stock_quantity }}</td>
+                    <td style="color:var(--g2)">₹{{ "{:,.0f}".format(p.price) }}</td>
+                    <td style="color:var(--muted);font-size:.75rem">
+                        {% if p.last_sold %}{{ p.last_sold }}{% else %}Never sold{% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-failed" style="font-size:.58rem">
+                            <i class="fas fa-exclamation"></i> Promote
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align:center;padding:40px;color:var(--muted)">
+            <i class="fas fa-check-circle" style="font-size:2rem;color:var(--success);margin-bottom:12px;display:block"></i>
+            <div style="font-size:.85rem">All products are selling well!</div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- SEASONAL TRENDS -->
+<div class="card">
+    <div class="card-hd">
+        <div>
+            <div class="card-ttl">Seasonal Trend Detector</div>
+            <div class="card-sub">Which jewellery sells best by month</div>
+        </div>
+        <span class="badge badge-live">Pattern Analysis</span>
+    </div>
+    {% if seasonal %}
+    <canvas id="seasonalChart" height="90"></canvas>
+    {% else %}
+    <div style="text-align:center;padding:40px;color:var(--muted)">
+        <i class="fas fa-chart-line" style="font-size:2rem;color:var(--g3);margin-bottom:12px;display:block"></i>
+        <div style="font-size:.85rem">Add more sales data to see seasonal trends</div>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Replace the entire askAI function in analytics.html with this:
+
+function askAI(question) {
+    const input   = document.getElementById('aiInput');
+    const chatBox = document.getElementById('chatBox');
+    const q       = question || input.value.trim();
+    if (!q) return;
+
+    // Show user message
+    chatBox.innerHTML += `
+        <div style="display:flex;gap:10px;align-items:flex-start;flex-direction:row-reverse">
+            <div style="width:26px;height:26px;border-radius:50%;background:var(--dark3);
+                        border:1px solid var(--border);display:flex;align-items:center;
+                        justify-content:center;font-size:.6rem;color:var(--muted);flex-shrink:0">U</div>
+            <div style="background:rgba(201,168,76,0.08);border:1px solid var(--border);
+                        border-radius:10px;padding:10px 14px;font-size:.8rem;color:var(--text)">
+                ${q}
+            </div>
+        </div>`;
+
+    input.value = '';
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    // Show typing indicator
+    const typingId = 'typing_' + Date.now();
+    chatBox.innerHTML += `
+        <div id="${typingId}" style="display:flex;gap:10px;align-items:flex-start">
+            <div style="width:26px;height:26px;border-radius:50%;
+                        background:linear-gradient(135deg,#E8C97A,#C9A84C);
+                        display:flex;align-items:center;justify-content:center;
+                        font-size:.6rem;color:#000;flex-shrink:0;font-weight:700">AI</div>
+            <div style="background:rgba(201,168,76,0.06);border:1px solid var(--border);
+                        border-radius:10px;padding:10px 14px;font-size:.8rem;color:var(--muted)">
+                <i class="fas fa-circle-notch fa-spin"></i> Thinking...
+            </div>
+        </div>`;
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    fetch('/ai_advisor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q })
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('Server error: ' + r.status);
+        return r.json();
+    })
+    .then(data => {
+        const typing = document.getElementById(typingId);
+        if (typing) typing.remove();
+        chatBox.innerHTML += `
+            <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:26px;height:26px;border-radius:50%;
+                            background:linear-gradient(135deg,#E8C97A,#C9A84C);
+                            display:flex;align-items:center;justify-content:center;
+                            font-size:.6rem;color:#000;flex-shrink:0;font-weight:700">AI</div>
+                <div style="background:rgba(201,168,76,0.06);border:1px solid var(--border);
+                            border-radius:10px;padding:10px 14px;font-size:.8rem;
+                            color:var(--text);line-height:1.7;white-space:pre-line">
+                    ${data.response}
+                </div>
+            </div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+    })
+    .catch(err => {
+        const typing = document.getElementById(typingId);
+        if (typing) typing.remove();
+        chatBox.innerHTML += `
+            <div style="display:flex;gap:10px;align-items:flex-start">
+                <div style="width:26px;height:26px;border-radius:50%;
+                            background:linear-gradient(135deg,#E8C97A,#C9A84C);
+                            display:flex;align-items:center;justify-content:center;
+                            font-size:.6rem;color:#000;flex-shrink:0;font-weight:700">AI</div>
+                <div style="background:rgba(224,92,92,0.08);border:1px solid rgba(224,92,92,0.2);
+                            border-radius:10px;padding:10px 14px;font-size:.8rem;color:#e05c5c">
+                    ❌ Error: ${err.message}. Please refresh and try again.
+                </div>
+            </div>`;
+        chatBox.scrollTop = chatBox.scrollHeight;
+    });
+}
+
+// ── SEASONAL CHART ──────────────────────────────────────────────────────────
+{% if seasonal %}
+var seasonalRaw = {{ seasonal | tojson }};
+var months      = [...new Set(seasonalRaw.map(d => d.month_name))];
+var categories  = [...new Set(seasonalRaw.map(d => d.category))];
+var colors      = ['#C9A84C','#E8C97A','#4ecb8d','#5cb8e0','#e05c5c','#8a6e2f','#9b59b6'];
+
+var datasets = categories.map((cat, i) => ({
+    label: cat,
+    data: months.map(m => {
+        var found = seasonalRaw.find(d => d.month_name === m && d.category === cat);
+        return found ? found.revenue : 0;
+    }),
+    borderColor:     colors[i % colors.length],
+    backgroundColor: colors[i % colors.length] + '22',
+    borderWidth: 2,
+    tension: 0.4,
+    fill: false,
+    pointRadius: 4,
+    pointHoverRadius: 6
+}));
+
+new Chart(document.getElementById('seasonalChart'), {
+    type: 'line',
+    data: { labels: months, datasets: datasets },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'top',
+                labels: { color:'#9e9a93', font:{ size:10 }, padding:14, boxWidth:12 }
+            },
+            tooltip: {
+                backgroundColor:'#111',
+                borderColor:'rgba(201,168,76,0.25)',
+                borderWidth:1,
+                titleColor:'#E8C97A',
+                bodyColor:'#9e9a93'
+            }
+        },
+        scales: {
+            x: { grid:{ color:'rgba(255,255,255,0.03)' }, ticks:{ color:'#6e6a63', font:{ size:10 } } },
+            y: { grid:{ color:'rgba(255,255,255,0.03)' }, ticks:{ color:'#6e6a63', font:{ size:10 } } }
+        }
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

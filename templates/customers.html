@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Customers{% endblock %}
+{% block topbar_title %}Customer Insights{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Customer Intelligence</h2>
+    <p>Purchase behaviour, loyalty analysis & insights</p>
+</div>
+
+<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px">
+    <div class="stat-card gold">
+        <div class="stat-top">
+            <div class="stat-icon"><i class="fas fa-users"></i></div>
+            <span class="stat-trend">Total</span>
+        </div>
+        <div class="stat-value">{{ customers|length }}</div>
+        <div class="stat-label">Total Customers</div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:70%"></div></div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon"><i class="fas fa-star"></i></div>
+            <span class="stat-trend">Loyal</span>
+        </div>
+        <div class="stat-value">{{ customers|selectattr('total_orders','gt',1)|list|length }}</div>
+        <div class="stat-label">Repeat Customers</div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:50%;background:linear-gradient(90deg,#1a6e45,#4ecb8d)"></div></div>
+    </div>
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon"><i class="fas fa-rupee-sign"></i></div>
+            <span class="stat-trend" style="background:rgba(92,184,224,.1);color:#5cb8e0">Avg</span>
+        </div>
+        <div class="stat-value">
+            {% set total = customers|sum(attribute='total_spent') %}
+            {% if customers|length > 0 %}
+            ₹{{ "{:,.0f}".format(total / customers|length) }}
+            {% else %}₹0{% endif %}
+        </div>
+        <div class="stat-label">Avg Spend/Customer</div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:60%;background:linear-gradient(90deg,#0a4a6e,#5cb8e0)"></div></div>
+    </div>
+</div>
+
+<div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+    <button onclick="document.getElementById('custModal').style.display='flex'" class="btn btn-gold">
+        <i class="fas fa-plus"></i> Add Customer
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-hd">
+        <div>
+            <div class="card-ttl">Customer Directory</div>
+            <div class="card-sub">All registered customers with purchase behaviour</div>
+        </div>
+        <span class="badge badge-live">{{ customers|length }} Customers</span>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>City</th>
+                <th>Orders</th>
+                <th>Total Spent</th>
+                <th>Loyalty</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in customers %}
+            <tr>
+                <td style="color:var(--dim)">{{ c.id }}</td>
+                <td style="color:var(--text);font-weight:500">{{ c.name }}</td>
+                <td style="color:var(--muted)">{{ c.email }}</td>
+                <td style="color:var(--muted)">{{ c.phone }}</td>
+                <td>{{ c.city }}</td>
+                <td style="color:var(--info)">{{ c.total_orders or 0 }}</td>
+                <td style="color:var(--g2);font-weight:500">₹{{ "{:,.0f}".format(c.total_spent or 0) }}</td>
+                <td>
+                    {% if c.total_orders > 1 %}
+                    <span class="badge badge-paid"><i class="fas fa-star"></i> Loyal</span>
+                    {% else %}
+                    <span class="badge badge-pending">New</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- ADD CUSTOMER MODAL -->
+<div id="custModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:999;align-items:center;justify-content:center">
+    <div style="background:#111;border:1px solid var(--border);border-radius:18px;padding:36px;width:500px;max-width:95vw;animation:fadeUp .3s ease">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+            <div>
+                <div style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:600">Add New Customer</div>
+                <div style="font-size:.72rem;color:var(--muted);margin-top:3px">Register a new customer</div>
+            </div>
+            <button onclick="document.getElementById('custModal').style.display='none'"
+                    style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form method="POST" action="/add_customer">
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" name="name" class="form-control" placeholder="e.g. Priya Sharma" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" class="form-control" placeholder="email@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="text" name="phone" class="form-control" placeholder="e.g. 9876543210" required>
+                </div>
+                <div class="form-group">
+                    <label>City</label>
+                    <input type="text" name="city" class="form-control" placeholder="e.g. Hyderabad" required>
+                </div>
+                <div class="form-group">
+                    <label>State</label>
+                    <input type="text" name="state" class="form-control" placeholder="e.g. Telangana" required>
+                </div>
+                <div class="form-group">
+                    <label>Pincode</label>
+                    <input type="text" name="pincode" class="form-control" placeholder="e.g. 500001" required>
+                </div>
+            </div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px">
+                <button type="button"
+                        onclick="document.getElementById('custModal').style.display='none'"
+                        class="btn btn-outline">Cancel</button>
+                <button type="submit" class="btn btn-gold">
+                    <i class="fas fa-plus"></i> Add Customer
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

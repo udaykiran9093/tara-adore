@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tara Adore — Register</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;600;700&family=DM+Sans:wght@200;300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+    --g1:#C9A84C;--g2:#E8C97A;--g3:#8a6e2f;
+    --bg:#050505;--border:rgba(201,168,76,0.15);
+    --text:#f0ece4;--muted:#9e9a93;--dim:#4e4a43;
+    --card:rgba(15,15,15,0.85);--shadow:rgba(0,0,0,0.6);
+    --input-bg:#0d0d0d;--input-border:rgba(201,168,76,0.12);
+}
+[data-theme="light"]{
+    --bg:#f5f0e8;--border:rgba(139,110,47,0.2);
+    --text:#1a1410;--muted:#6b6058;--dim:#a89880;
+    --card:rgba(245,240,232,0.92);--shadow:rgba(100,70,20,0.15);
+    --input-bg:#ede8df;--input-border:rgba(139,110,47,0.18);
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;transition:background .4s,color .4s;padding:40px 20px}
+.bg-orbs{position:fixed;inset:0;pointer-events:none;z-index:0}
+.orb{position:absolute;border-radius:50%;filter:blur(80px);animation:drift 12s ease-in-out infinite alternate}
+.orb1{width:400px;height:400px;background:radial-gradient(circle,rgba(201,168,76,0.07),transparent 70%);top:-100px;left:-100px}
+.orb2{width:300px;height:300px;background:radial-gradient(circle,rgba(201,168,76,0.05),transparent 70%);bottom:-80px;right:-80px;animation-delay:-5s}
+[data-theme="light"] .orb1{background:radial-gradient(circle,rgba(201,168,76,0.15),transparent 70%)}
+[data-theme="light"] .orb2{background:radial-gradient(circle,rgba(139,110,47,0.1),transparent 70%)}
+@keyframes drift{from{transform:translate(0,0)}to{transform:translate(25px,18px)}}
+
+.theme-toggle{position:fixed;top:24px;right:24px;z-index:100;background:var(--card);border:1px solid var(--border);border-radius:50px;padding:6px;display:flex;align-items:center;gap:4px;backdrop-filter:blur(20px);box-shadow:0 8px 32px var(--shadow);cursor:pointer}
+.toggle-btn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:none;cursor:pointer;transition:all .3s;background:transparent;color:var(--muted);font-size:.85rem}
+.toggle-btn.active{background:linear-gradient(135deg,var(--g2),var(--g1));color:#000;box-shadow:0 4px 16px rgba(201,168,76,0.4)}
+.toggle-label{font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);padding:0 8px;white-space:nowrap}
+
+.wrap{position:relative;z-index:10;width:100%;max-width:480px;animation:riseIn .6s cubic-bezier(.16,1,.3,1) both}
+@keyframes riseIn{from{opacity:0;transform:translateY(32px)}to{opacity:1;transform:translateY(0)}}
+
+.card{background:var(--card);border:1px solid var(--border);border-radius:24px;padding:44px 40px;backdrop-filter:blur(40px);box-shadow:0 32px 80px var(--shadow);position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:10%;right:10%;height:1px;background:linear-gradient(90deg,transparent,rgba(201,168,76,0.35),transparent)}
+
+.logo{text-align:center;margin-bottom:32px}
+.logo-gem{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#1a1410,#0d0d0d);border:1px solid rgba(201,168,76,0.2);display:inline-flex;align-items:center;justify-content:center;margin-bottom:14px;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+[data-theme="light"] .logo-gem{background:linear-gradient(135deg,#e4ddd2,#ede8df)}
+.logo-gem i{font-size:1.3rem;background:linear-gradient(135deg,var(--g2),var(--g1));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo h1{font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:700;background:linear-gradient(135deg,var(--g2) 20%,var(--g1) 60%,var(--g3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:.06em}
+.logo p{font-size:.6rem;letter-spacing:.28em;color:var(--muted);margin-top:8px;text-transform:uppercase}
+
+.divider{display:flex;align-items:center;gap:12px;margin:16px 0 24px}
+.divider-line{flex:1;height:1px;background:var(--border)}
+.divider span{font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:.62rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:7px;transition:color .2s}
+.input-wrap{position:relative}
+.input-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--dim);font-size:.8rem;pointer-events:none}
+.form-control{width:100%;background:var(--input-bg);border:1px solid var(--input-border);border-radius:10px;padding:12px 14px 12px 40px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.88rem;outline:none;transition:all .25s}
+.form-control::placeholder{color:var(--dim)}
+.form-control:focus{border-color:var(--g1);box-shadow:0 0 0 3px rgba(201,168,76,0.1)}
+.form-group:focus-within label{color:var(--g2)}
+.pass-toggle{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--dim);cursor:pointer;font-size:.8rem;transition:color .2s;padding:4px}
+.pass-toggle:hover{color:var(--g1)}
+
+.strength-bar{height:3px;border-radius:2px;background:rgba(255,255,255,0.05);margin-top:6px;overflow:hidden}
+[data-theme="light"] .strength-bar{background:rgba(0,0,0,0.06)}
+.strength-fill{height:100%;border-radius:2px;transition:width .3s,background .3s;width:0}
+
+.error-msg{background:rgba(224,92,92,0.08);border:1px solid rgba(224,92,92,0.2);border-radius:8px;padding:10px 14px;font-size:.75rem;color:#e05c5c;margin-bottom:16px;display:flex;align-items:center;gap:8px;animation:shake .4s ease}
+.success-msg{background:rgba(78,203,141,0.08);border:1px solid rgba(78,203,141,0.2);border-radius:8px;padding:10px 14px;font-size:.75rem;color:#4ecb8d;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+
+.btn-register{width:100%;padding:14px;border-radius:10px;border:none;background:linear-gradient(135deg,var(--g2),var(--g1),#b8912a);color:#0a0800;font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .3s;margin-top:4px}
+.btn-register:hover{box-shadow:0 10px 36px rgba(201,168,76,0.4);transform:translateY(-1px)}
+
+.login-link{display:block;text-align:center;margin-top:20px;font-size:.72rem;color:var(--muted);text-decoration:none;transition:color .2s;letter-spacing:.05em}
+.login-link:hover{color:var(--g2)}
+.login-link span{color:var(--g1);margin-left:4px}
+
+.footer{text-align:center;margin-top:24px;font-size:.58rem;letter-spacing:.12em;color:var(--dim);text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="bg-orbs"><div class="orb orb1"></div><div class="orb orb2"></div></div>
+
+<div class="theme-toggle" onclick="toggleTheme()">
+    <button class="toggle-btn" id="btnDark"><i class="fas fa-moon"></i></button>
+    <span class="toggle-label" id="toggleLabel">Dark</span>
+    <button class="toggle-btn" id="btnLight"><i class="fas fa-sun"></i></button>
+</div>
+
+<div class="wrap">
+    <div class="card">
+        <div class="logo">
+            <div class="logo-gem"><i class="fas fa-gem"></i></div>
+            <h1>Tara Adore</h1>
+            <p>Create Admin Account</p>
+        </div>
+
+        <div class="divider">
+            <div class="divider-line"></div>
+            <span>New Registration</span>
+            <div class="divider-line"></div>
+        </div>
+
+        {% if error %}
+        <div class="error-msg"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>
+        {% endif %}
+        {% if success %}
+        <div class="success-msg"><i class="fas fa-check-circle"></i> {{ success }}</div>
+        {% endif %}
+
+        <form method="POST" action="/register">
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Username</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-user input-icon"></i>
+                        <input type="text" name="username" class="form-control" placeholder="admin123" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-envelope input-icon"></i>
+                        <input type="email" name="email" class="form-control" placeholder="you@gmail.com" required>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <div class="input-wrap">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" name="password" id="passInput" class="form-control"
+                           placeholder="Min 6 characters" oninput="checkStrength(this.value)" required>
+                    <button type="button" class="pass-toggle" onclick="togglePass('passInput','eye1')">
+                        <i class="fas fa-eye" id="eye1"></i>
+                    </button>
+                </div>
+                <div class="strength-bar"><div class="strength-fill" id="strengthFill"></div></div>
+            </div>
+            <div class="form-group">
+                <label>Confirm Password</label>
+                <div class="input-wrap">
+                    <i class="fas fa-lock input-icon"></i>
+                    <input type="password" name="confirm_password" id="confirmInput" class="form-control" placeholder="Repeat password" required>
+                    <button type="button" class="pass-toggle" onclick="togglePass('confirmInput','eye2')">
+                        <i class="fas fa-eye" id="eye2"></i>
+                    </button>
+                </div>
+            </div>
+            <button type="submit" class="btn-register">
+                <i class="fas fa-user-plus" style="margin-right:8px"></i>Create Account
+            </button>
+        </form>
+
+        <a href="/login" class="login-link">Already have an account?<span>Sign in →</span></a>
+        <div class="footer">Tara Adore © 2025 &nbsp;·&nbsp; taraadore.in</div>
+    </div>
+</div>
+
+<script>
+const html=document.documentElement;
+const btnDark=document.getElementById('btnDark');
+const btnLight=document.getElementById('btnLight');
+const label=document.getElementById('toggleLabel');
+let theme=localStorage.getItem('ta_theme')||'dark';
+applyTheme(theme);
+function applyTheme(t){theme=t;html.setAttribute('data-theme',t);localStorage.setItem('ta_theme',t);
+    if(t==='dark'){btnDark.classList.add('active');btnLight.classList.remove('active');label.textContent='Dark'}
+    else{btnLight.classList.add('active');btnDark.classList.remove('active');label.textContent='Light'}}
+function toggleTheme(){applyTheme(theme==='dark'?'light':'dark')}
+
+function togglePass(inputId, iconId){
+    const inp=document.getElementById(inputId);
+    const icon=document.getElementById(iconId);
+    if(inp.type==='password'){inp.type='text';icon.className='fas fa-eye-slash'}
+    else{inp.type='password';icon.className='fas fa-eye'}
+}
+function checkStrength(val){
+    const fill=document.getElementById('strengthFill');
+    let score=0;
+    if(val.length>=6)score++;
+    if(/[A-Z]/.test(val))score++;
+    if(/[0-9]/.test(val))score++;
+    if(/[^A-Za-z0-9]/.test(val))score++;
+    const colors=['#e05c5c','#e09a5c','#e0d45c','#4ecb8d'];
+    const widths=['25%','50%','75%','100%'];
+    fill.style.width=score>0?widths[score-1]:'0';
+    fill.style.background=score>0?colors[score-1]:'';
+}
+</script>
+</body>
+</html>

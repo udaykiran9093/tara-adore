@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}AI Forecast{% endblock %}
+{% block topbar_title %}AI Sales Forecasting{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>AI Sales Forecast</h2>
+    <p>Machine learning powered revenue predictions — next 90 days</p>
+</div>
+
+{% if model_trained %}
+
+<div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="stat-card gold">
+        <div class="stat-top">
+            <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+            <span class="stat-trend">90 Days</span>
+        </div>
+        <div class="stat-value">Rs {{ "{:,.0f}".format(total_predicted) }}</div>
+        <div class="stat-label">Predicted Revenue</div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:80%"></div></div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-top">
+            <div class="stat-icon"><i class="fas fa-brain"></i></div>
+            <span class="stat-trend">Active</span>
+        </div>
+        <div class="stat-value" style="font-size:1.1rem;margin-top:4px">Random Forest</div>
+        <div class="stat-label">ML Model Used</div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:90%;background:linear-gradient(90deg,#1a6e45,#4ecb8d)"></div></div>
+    </div>
+    <div class="stat-card blue">
+        <div class="stat-top">
+            <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
+            <span class="stat-trend" style="background:rgba(92,184,224,.1);color:#5cb8e0">Horizon</span>
+        </div>
+        <div class="stat-value">{{ monthly_forecast|length }} Months</div>
+        <div class="stat-label">Forecast Period</div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:60%;background:linear-gradient(90deg,#0a4a6e,#5cb8e0)"></div></div>
+    </div>
+</div>
+
+<div class="grid-2" style="margin-bottom:18px">
+    <div class="card">
+        <div class="card-hd">
+            <div>
+                <div class="card-ttl">Monthly Revenue Forecast</div>
+                <div class="card-sub">Predicted sales for next 3 months</div>
+            </div>
+            <span class="badge badge-live">AI Powered</span>
+        </div>
+        <canvas id="forecastChart" height="180"></canvas>
+    </div>
+    <div class="card">
+        <div class="card-hd">
+            <div>
+                <div class="card-ttl">Category Forecast</div>
+                <div class="card-sub">Predicted revenue by jewellery type</div>
+            </div>
+        </div>
+        <canvas id="catForecastChart" height="180"></canvas>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-hd">
+        <div>
+            <div class="card-ttl">Monthly Forecast Breakdown</div>
+            <div class="card-sub">Detailed prediction results</div>
+        </div>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>Month</th>
+                <th>Predicted Revenue</th>
+                <th>Confidence</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in monthly_forecast %}
+            <tr>
+                <td style="color:var(--text)">{{ m.month }}</td>
+                <td style="color:var(--g2);font-weight:500">Rs {{ "{:,.0f}".format(m.predicted_total) }}</td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <div style="flex:1;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden">
+                            <div style="height:100%;width:82%;background:linear-gradient(90deg,var(--g3),var(--g1));border-radius:2px"></div>
+                        </div>
+                        <span style="font-size:.7rem;color:var(--muted)">82%</span>
+                    </div>
+                </td>
+                <td><span class="badge badge-paid">Forecasted</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% else %}
+<div class="card" style="text-align:center;padding:60px">
+    <div style="font-size:2.5rem;color:var(--g1);margin-bottom:20px"><i class="fas fa-brain"></i></div>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:1.5rem;margin-bottom:12px">Model Not Trained Yet</div>
+    <p style="color:var(--muted);max-width:380px;margin:0 auto 24px;font-size:.85rem;line-height:1.7">
+        Run the training script to activate AI forecasting
+    </p>
+    <div style="background:var(--dark3);border:1px solid var(--border);border-radius:10px;padding:16px;font-family:monospace;font-size:.82rem;color:var(--g2);text-align:left;max-width:360px;margin:0 auto">
+        python ml/train_model.py
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+{% if model_trained %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+var g = '#C9A84C';
+var gl = '#E8C97A';
+
+var months = [];
+var amounts = [];
+var cats = [];
+var catAmts = [];
+
+{% for m in monthly_forecast %}
+months.push("{{ m.month }}");
+amounts.push({{ m.predicted_total | round | int }});
+{% endfor %}
+
+{% for c in category_forecast %}
+cats.push("{{ c.category }}");
+catAmts.push({{ c.predicted_total | round | int }});
+{% endfor %}
+
+new Chart(document.getElementById('forecastChart'), {
+    type: 'bar',
+    data: {
+        labels: months,
+        datasets: [{
+            label: 'Predicted Revenue',
+            data: amounts,
+            backgroundColor: 'rgba(201,168,76,0.15)',
+            borderColor: g,
+            borderWidth: 2,
+            borderRadius: 8,
+            hoverBackgroundColor: 'rgba(201,168,76,0.25)'
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: '#111',
+                borderColor: 'rgba(201,168,76,0.25)',
+                borderWidth: 1,
+                titleColor: gl,
+                bodyColor: '#9e9a93'
+            }
+        },
+        scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#6e6a63', font: { size: 10 } } },
+            y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#6e6a63', font: { size: 10 } } }
+        }
+    }
+});
+
+new Chart(document.getElementById('catForecastChart'), {
+    type: 'doughnut',
+    data: {
+        labels: cats,
+        datasets: [{
+            data: catAmts,
+            backgroundColor: ['#C9A84C','#E8C97A','#8a6e2f','#4ecb8d','#5cb8e0'],
+            borderColor: '#111',
+            borderWidth: 3,
+            hoverOffset: 6
+        }]
+    },
+    options: {
+        responsive: true,
+        cutout: '65%',
+        plugins: {
+            legend: {
+                position: 'right',
+                labels: { color: '#6e6a63', font: { size: 10 }, padding: 10, boxWidth: 10 }
+            },
+            tooltip: {
+                backgroundColor: '#111',
+                borderColor: 'rgba(201,168,76,0.25)',
+                borderWidth: 1,
+                titleColor: gl,
+                bodyColor: '#9e9a93'
+            }
+        }
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

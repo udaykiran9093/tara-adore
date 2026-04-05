@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+{% block topbar_title %}My Profile{% endblock %}
+
+{% block content %}
+<style>
+.profile-wrap{max-width:680px;margin:0 auto}
+
+.profile-hero{
+    background:var(--bg2);border:1px solid var(--border);border-radius:20px;
+    padding:36px;margin-bottom:24px;
+    position:relative;overflow:hidden;
+    display:flex;align-items:center;gap:28px;
+}
+.profile-hero::before{
+    content:'';position:absolute;top:0;left:10%;right:10%;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(201,168,76,0.35),transparent);
+}
+.profile-hero::after{
+    content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;
+    border-radius:50%;background:radial-gradient(circle,rgba(201,168,76,0.06),transparent 70%);
+    pointer-events:none;
+}
+.avatar-ring{
+    width:80px;height:80px;border-radius:50%;flex-shrink:0;
+    background:linear-gradient(135deg,var(--gold-light),var(--gold),var(--gold-dark));
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Cormorant Garamond',serif;font-size:2rem;font-weight:700;color:#000;
+    box-shadow:0 8px 32px rgba(201,168,76,0.3);
+}
+.profile-info h2{
+    font-family:'Cormorant Garamond',serif;font-size:1.7rem;font-weight:600;color:var(--text);
+}
+.profile-info p{color:var(--text-dim);font-size:.78rem;margin-top:5px}
+.profile-badges{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.p-badge{
+    display:inline-flex;align-items:center;gap:6px;padding:4px 12px;
+    border-radius:20px;font-size:.62rem;letter-spacing:.06em;
+    background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.15);
+    color:var(--gold-light);
+}
+
+.profile-card{
+    background:var(--card);border:1px solid var(--border);
+    border-radius:var(--radius);overflow:hidden;
+}
+.profile-card-header{
+    padding:20px 24px;border-bottom:1px solid var(--border);
+    display:flex;justify-content:space-between;align-items:center;
+}
+.profile-card-header h3{
+    font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:600;color:var(--text);
+}
+.profile-card-header p{font-size:.68rem;color:var(--text-dim);margin-top:2px}
+.edit-toggle{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:7px 16px;border-radius:8px;border:1px solid var(--border);
+    background:transparent;color:var(--text-dim);font-family:'DM Sans',sans-serif;
+    font-size:.72rem;cursor:pointer;transition:all .2s;
+}
+.edit-toggle:hover{border-color:var(--gold);color:var(--gold)}
+.edit-toggle.active{
+    background:linear-gradient(135deg,var(--gold-light),var(--gold));
+    color:#000;border-color:transparent;
+}
+
+.profile-card-body{padding:24px}
+
+/* View mode */
+.info-row{
+    display:flex;align-items:center;gap:16px;
+    padding:14px 0;border-bottom:1px solid var(--border);
+}
+.info-row:last-child{border-bottom:none}
+.info-icon{
+    width:36px;height:36px;border-radius:9px;flex-shrink:0;
+    background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.12);
+    display:flex;align-items:center;justify-content:center;
+    color:var(--gold);font-size:.8rem;
+}
+.info-label{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint)}
+.info-value{font-size:.88rem;color:var(--text);margin-top:2px;font-weight:400}
+
+/* Edit mode */
+.edit-form{display:none}
+.edit-form.show{display:block}
+.view-mode.hide{display:none}
+
+.form-group{margin-bottom:18px}
+.form-group label{
+    display:block;font-size:.6rem;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--text-dim);margin-bottom:7px;
+}
+.input-wrap{position:relative}
+.input-icon{
+    position:absolute;left:13px;top:50%;transform:translateY(-50%);
+    color:var(--text-faint);font-size:.78rem;pointer-events:none;
+}
+.form-control{
+    width:100%;background:var(--bg3);border:1px solid var(--border);
+    border-radius:9px;padding:11px 13px 11px 38px;color:var(--text);
+    font-family:'DM Sans',sans-serif;font-size:.85rem;outline:none;transition:all .2s;
+}
+.form-control:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,0.08)}
+.form-control::placeholder{color:var(--text-faint)}
+.form-control[readonly]{opacity:.5;cursor:not-allowed}
+
+.btn-save{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:11px 28px;border-radius:9px;border:none;
+    background:linear-gradient(135deg,var(--gold-light),var(--gold));
+    color:#000;font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:600;
+    cursor:pointer;transition:all .25s;
+}
+.btn-save:hover{box-shadow:0 8px 24px rgba(201,168,76,0.35);transform:translateY(-1px)}
+.btn-cancel{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:11px 20px;border-radius:9px;
+    border:1px solid var(--border);background:transparent;
+    color:var(--text-dim);font-family:'DM Sans',sans-serif;font-size:.78rem;
+    cursor:pointer;transition:all .2s;margin-left:10px;
+}
+.btn-cancel:hover{border-color:var(--border-hover);color:var(--text)}
+
+{% if success %}
+.success-banner{
+    background:rgba(78,203,141,0.08);border:1px solid rgba(78,203,141,0.2);
+    border-radius:10px;padding:12px 16px;margin-bottom:20px;
+    display:flex;align-items:center;gap:10px;
+    font-size:.78rem;color:#4ecb8d;
+}
+{% endif %}
+{% if error %}
+.error-banner{
+    background:rgba(224,92,92,0.08);border:1px solid rgba(224,92,92,0.2);
+    border-radius:10px;padding:12px 16px;margin-bottom:20px;
+    display:flex;align-items:center;gap:10px;
+    font-size:.78rem;color:#e06b6b;
+}
+{% endif %}
+</style>
+
+<div class="profile-wrap">
+    <div class="page-header">
+        <h2>My Profile</h2>
+        <p>View and manage your admin account details</p>
+    </div>
+
+    {% if success %}
+    <div class="success-banner"><i class="fas fa-check-circle"></i> {{ success }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="error-banner"><i class="fas fa-exclamation-circle"></i> {{ error }}</div>
+    {% endif %}
+
+    <!-- HERO -->
+    <div class="profile-hero">
+        <div class="avatar-ring">{{ admin_data.username[0]|upper }}</div>
+        <div class="profile-info">
+            <h2>{{ admin_data.full_name or admin_data.username|title }}</h2>
+            <p>{{ admin_data.email or 'No email set' }} &nbsp;·&nbsp; Administrator</p>
+            <div class="profile-badges">
+                <span class="p-badge"><i class="fas fa-shield-alt"></i> Super Admin</span>
+                <span class="p-badge"><i class="fas fa-circle" style="font-size:.4rem;color:#4ecb8d"></i> Active</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- PROFILE CARD -->
+    <div class="profile-card">
+        <div class="profile-card-header">
+            <div>
+                <h3>Account Information</h3>
+                <p>Your personal and contact details</p>
+            </div>
+            <button class="edit-toggle" id="editToggle" onclick="toggleEdit()">
+                <i class="fas fa-pen"></i> Edit Profile
+            </button>
+        </div>
+        <div class="profile-card-body">
+
+            <!-- VIEW MODE -->
+            <div class="view-mode" id="viewMode">
+                <div class="info-row">
+                    <div class="info-icon"><i class="fas fa-user"></i></div>
+                    <div>
+                        <div class="info-label">Username</div>
+                        <div class="info-value">{{ admin_data.username }}</div>
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-icon"><i class="fas fa-id-card"></i></div>
+                    <div>
+                        <div class="info-label">Full Name</div>
+                        <div class="info-value">{{ admin_data.full_name or '—' }}</div>
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-icon"><i class="fas fa-envelope"></i></div>
+                    <div>
+                        <div class="info-label">Email Address</div>
+                        <div class="info-value">{{ admin_data.email or '—' }}</div>
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-icon"><i class="fas fa-phone"></i></div>
+                    <div>
+                        <div class="info-label">Phone Number</div>
+                        <div class="info-value">{{ admin_data.phone or '—' }}</div>
+                    </div>
+                </div>
+                <div class="info-row">
+                    <div class="info-icon"><i class="fas fa-shield-alt"></i></div>
+                    <div>
+                        <div class="info-label">Role</div>
+                        <div class="info-value">Super Administrator</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EDIT MODE -->
+            <form class="edit-form" id="editForm" method="POST" action="/update_profile">
+                <div class="form-group">
+                    <label>Username</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-user input-icon"></i>
+                        <input type="text" class="form-control" value="{{ admin_data.username }}" readonly>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-id-card input-icon"></i>
+                        <input type="text" name="full_name" class="form-control"
+                               value="{{ admin_data.full_name or '' }}"
+                               placeholder="Your full name">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-envelope input-icon"></i>
+                        <input type="email" name="email" class="form-control"
+                               value="{{ admin_data.email or '' }}"
+                               placeholder="you@gmail.com">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <div class="input-wrap">
+                        <i class="fas fa-phone input-icon"></i>
+                        <input type="text" name="phone" class="form-control"
+                               value="{{ admin_data.phone or '' }}"
+                               placeholder="+91 98765 43210">
+                    </div>
+                </div>
+                <div style="margin-top:8px">
+                    <button type="submit" class="btn-save"><i class="fas fa-save"></i> Save Changes</button>
+                    <button type="button" class="btn-cancel" onclick="toggleEdit()">Cancel</button>
+                </div>
+            </form>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleEdit(){
+    const view = document.getElementById('viewMode');
+    const form = document.getElementById('editForm');
+    const btn  = document.getElementById('editToggle');
+    const isEditing = form.classList.contains('show');
+    if(isEditing){
+        form.classList.remove('show');
+        view.classList.remove('hide');
+        btn.classList.remove('active');
+        btn.innerHTML = '<i class="fas fa-pen"></i> Edit Profile';
+    } else {
+        form.classList.add('show');
+        view.classList.add('hide');
+        btn.classList.add('active');
+        btn.innerHTML = '<i class="fas fa-times"></i> Cancel';
+    }
+}
+</script>
+{% endblock %}

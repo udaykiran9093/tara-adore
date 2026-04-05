@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Sales{% endblock %}
+{% block topbar_title %}Sales Management{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Sales Records</h2>
+    <p>Complete transaction history for Tara Adore</p>
+</div>
+
+<div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+    <button onclick="document.getElementById('saleModal').style.display='flex'" class="btn btn-gold">
+        <i class="fas fa-plus"></i> Add Sale
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-hd">
+        <div>
+            <div class="card-ttl">All Transactions</div>
+            <div class="card-sub">Complete sales history</div>
+        </div>
+        <span class="badge badge-live">{{ sales|length }} Records</span>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Customer</th>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Amount</th>
+                <th>Date</th>
+                <th>Payment</th>
+                <th>Delivery</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in sales %}
+            <tr>
+                <td style="color:var(--dim)">#{{ s.id }}</td>
+                <td style="color:var(--text)">{{ s.name }}</td>
+                <td>{{ s.product }}</td>
+                <td style="color:var(--muted)">{{ s.quantity }}</td>
+                <td style="color:var(--g2);font-weight:500">₹{{ "{:,.0f}".format(s.total_amount) }}</td>
+                <td style="color:var(--muted)">{{ s.sale_date }}</td>
+                <td><span class="badge badge-{{ s.payment_status|lower }}">{{ s.payment_status }}</span></td>
+                <td><span class="badge badge-{{ s.delivery_status|lower }}">{{ s.delivery_status }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="saleModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:999;align-items:center;justify-content:center">
+    <div style="background:#111;border:1px solid var(--border);border-radius:18px;padding:36px;width:480px;max-width:95vw;animation:fadeUp .3s ease">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+            <div>
+                <div style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:600">Add New Sale</div>
+                <div style="font-size:.72rem;color:var(--muted);margin-top:3px">Record a sales transaction</div>
+            </div>
+            <button onclick="document.getElementById('saleModal').style.display='none'"
+                    style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form method="POST" action="/add_sale">
+            <div class="form-group">
+                <label>Customer ID</label>
+                <input type="number" name="customer_id" class="form-control" placeholder="Enter customer ID" required>
+            </div>
+            <div class="form-group">
+                <label>Product ID</label>
+                <input type="number" name="product_id" class="form-control" placeholder="Enter product ID" required>
+            </div>
+            <div class="form-group">
+                <label>Quantity</label>
+                <input type="number" name="quantity" class="form-control" placeholder="e.g. 1" min="1" required>
+            </div>
+            <div class="form-group">
+                <label>Sale Date</label>
+                <input type="date" name="sale_date" class="form-control" required>
+            </div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px">
+                <button type="button" onclick="document.getElementById('saleModal').style.display='none'"
+                        class="btn btn-outline">Cancel</button>
+                <button type="submit" class="btn btn-gold">
+                    <i class="fas fa-plus"></i> Add Sale
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

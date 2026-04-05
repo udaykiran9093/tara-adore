@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tara Adore — {% block title %}Dashboard{% endblock %}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300&family=DM+Sans:wght@200;300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+    --gold:#C9A84C;--gold-light:#E8C97A;--gold-dark:#8a6e2f;
+    --bg:#0a0a0a;--bg2:#111111;--bg3:#161616;
+    --sidebar-bg:#0d0d0d;
+    --border:rgba(201,168,76,0.12);
+    --border-hover:rgba(201,168,76,0.25);
+    --text:#f0ece4;--text-dim:#9e9a93;--text-faint:#4e4a43;
+    --card:rgba(18,18,18,0.9);
+    --shadow:rgba(0,0,0,0.5);
+    --sidebar-w:240px;
+    --topbar-h:60px;
+    --radius:14px;
+}
+[data-theme="light"]{
+    --bg:#f2ede4;--bg2:#ede8df;--bg3:#e6e0d6;
+    --sidebar-bg:#e8e2d8;
+    --border:rgba(139,110,47,0.18);
+    --border-hover:rgba(139,110,47,0.35);
+    --text:#1a1410;--text-dim:#6b6058;--text-faint:#a89880;
+    --card:rgba(240,235,226,0.95);
+    --shadow:rgba(100,70,20,0.12);
+}
+
+body{
+    font-family:'DM Sans',sans-serif;
+    background:var(--bg);color:var(--text);
+    display:flex;min-height:100vh;
+    transition:background .35s,color .35s;
+    overflow-x:hidden;
+}
+
+/* ── SIDEBAR ── */
+.sidebar{
+    width:var(--sidebar-w);min-height:100vh;
+    background:var(--sidebar-bg);
+    border-right:1px solid var(--border);
+    display:flex;flex-direction:column;
+    position:fixed;left:0;top:0;z-index:50;
+    transition:background .35s,border .35s;
+}
+.sidebar-logo{
+    padding:22px 20px 18px;
+    border-bottom:1px solid var(--border);
+    display:flex;align-items:center;gap:10px;
+}
+.logo-gem{
+    width:34px;height:34px;border-radius:9px;
+    background:linear-gradient(135deg,rgba(201,168,76,0.15),rgba(201,168,76,0.06));
+    border:1px solid rgba(201,168,76,0.2);
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+}
+.logo-gem i{font-size:.85rem;background:linear-gradient(135deg,var(--gold-light),var(--gold));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.logo-text{display:flex;flex-direction:column}
+.logo-name{font-family:'Cormorant Garamond',serif;font-size:1.05rem;font-weight:600;color:var(--text);letter-spacing:.03em;line-height:1.1}
+.logo-sub{font-size:.52rem;letter-spacing:.2em;color:var(--text-faint);text-transform:uppercase;margin-top:2px}
+
+.nav-wrap{flex:1;padding:16px 0;overflow-y:auto}
+.nav-sec{
+    font-size:.52rem;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--text-faint);padding:10px 20px 6px;margin-top:6px;
+}
+.nav-a{
+    display:flex;align-items:center;gap:10px;
+    padding:9px 20px;font-size:.78rem;color:var(--text-dim);
+    text-decoration:none;transition:all .2s;position:relative;
+    border-left:2px solid transparent;
+}
+.nav-a i{width:16px;text-align:center;font-size:.8rem;flex-shrink:0}
+.nav-a:hover{color:var(--text);background:rgba(201,168,76,0.05);border-left-color:rgba(201,168,76,0.3)}
+.nav-a.active{
+    color:var(--gold-light);
+    background:rgba(201,168,76,0.08);
+    border-left-color:var(--gold);
+    font-weight:500;
+}
+
+.sidebar-footer{
+    padding:16px 20px;border-top:1px solid var(--border);
+    display:flex;align-items:center;gap:10px;
+}
+.sf-avatar{
+    width:30px;height:30px;border-radius:8px;
+    background:linear-gradient(135deg,var(--gold),var(--gold-dark));
+    display:flex;align-items:center;justify-content:center;
+    font-size:.7rem;font-weight:600;color:#000;flex-shrink:0;
+    text-transform:uppercase;
+}
+.sf-info{flex:1;min-width:0}
+.sf-name{font-size:.75rem;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sf-role{font-size:.58rem;color:var(--text-faint);letter-spacing:.08em;text-transform:uppercase}
+
+/* ── MAIN ── */
+.main{
+    margin-left:var(--sidebar-w);
+    flex:1;display:flex;flex-direction:column;
+    min-height:100vh;
+}
+
+/* ── TOPBAR ── */
+.topbar{
+    height:var(--topbar-h);
+    background:var(--bg2);
+    border-bottom:1px solid var(--border);
+    display:flex;align-items:center;
+    padding:0 28px;gap:16px;
+    position:sticky;top:0;z-index:40;
+    transition:background .35s,border .35s;
+}
+.tb-title{
+    font-family:'Cormorant Garamond',serif;
+    font-size:1.1rem;font-weight:600;color:var(--text);
+    flex:1;
+}
+.tb-right{display:flex;align-items:center;gap:12px}
+
+/* Theme toggle */
+.theme-toggle{
+    background:var(--bg3);border:1px solid var(--border);border-radius:50px;
+    padding:4px;display:flex;align-items:center;gap:2px;cursor:pointer;
+}
+.tt-btn{
+    width:28px;height:28px;border-radius:50%;border:none;cursor:pointer;
+    background:transparent;color:var(--text-faint);font-size:.72rem;
+    display:flex;align-items:center;justify-content:center;transition:all .25s;
+}
+.tt-btn.active{background:linear-gradient(135deg,var(--gold-light),var(--gold));color:#000;box-shadow:0 2px 10px rgba(201,168,76,0.35)}
+
+.tb-divider{width:1px;height:20px;background:var(--border)}
+
+.tb-avatar{
+    width:32px;height:32px;border-radius:9px;
+    background:linear-gradient(135deg,var(--gold),var(--gold-dark));
+    display:flex;align-items:center;justify-content:center;
+    font-size:.72rem;font-weight:600;color:#000;cursor:pointer;
+    text-transform:uppercase;text-decoration:none;
+    transition:box-shadow .2s;
+}
+.tb-avatar:hover{box-shadow:0 0 0 2px var(--gold)}
+
+/* ── CONTENT ── */
+.content{
+    flex:1;padding:28px;
+    background:var(--bg);
+    transition:background .35s;
+}
+
+/* ── PAGE HEADER ── */
+.page-header{margin-bottom:24px}
+.page-header h2{
+    font-family:'Cormorant Garamond',serif;
+    font-size:1.6rem;font-weight:600;color:var(--text);
+}
+.page-header p{font-size:.78rem;color:var(--text-dim);margin-top:4px}
+
+/* ── CARDS ── */
+.card{
+    background:var(--card);border:1px solid var(--border);
+    border-radius:var(--radius);padding:22px;
+    transition:border .25s,background .35s;
+    margin-bottom:24px;
+}
+.card:hover{border-color:var(--border-hover)}
+
+/* ── STATS GRID ── */
+.stats-grid{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:16px;
+    margin-bottom:24px;
+}
+.stat-card{
+    background:var(--card);border:1px solid var(--border);
+    border-radius:var(--radius);padding:20px;
+    transition:all .25s;cursor:default;
+}
+.stat-card:hover{border-color:var(--border-hover);transform:translateY(-2px);box-shadow:0 8px 28px var(--shadow)}
+.stat-card.gold{border-top:2px solid var(--gold)}
+.stat-card.green{border-top:2px solid #4ecb8d}
+.stat-card.blue{border-top:2px solid #5cb8e0}
+.stat-card.red{border-top:2px solid #e06b6b}
+.stat-icon{font-size:1.1rem;margin-bottom:12px;opacity:.7}
+.stat-card.gold .stat-icon{color:var(--gold)}
+.stat-card.green .stat-icon{color:#4ecb8d}
+.stat-card.blue .stat-icon{color:#5cb8e0}
+.stat-card.red .stat-icon{color:#e06b6b}
+.stat-value{font-family:'Cormorant Garamond',serif;font-size:1.8rem;font-weight:600;color:var(--text);line-height:1}
+.stat-label{font-size:.68rem;color:var(--text-dim);margin-top:6px;letter-spacing:.05em;text-transform:uppercase}
+.stat-change{font-size:.65rem;margin-top:8px;display:flex;align-items:center;gap:4px}
+.stat-change.up{color:#4ecb8d}
+
+/* ── GRID ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+
+/* ── TABLE ── */
+table{width:100%;border-collapse:collapse}
+thead th{
+    font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--text-faint);padding:10px 12px;
+    border-bottom:1px solid var(--border);text-align:left;font-weight:500;
+}
+tbody td{
+    padding:12px;font-size:.82rem;color:var(--text);
+    border-bottom:1px solid rgba(255,255,255,0.03);
+    transition:background .15s;
+}
+[data-theme="light"] tbody td{border-bottom:1px solid rgba(0,0,0,0.04)}
+tbody tr:hover td{background:rgba(201,168,76,0.04)}
+tbody tr:last-child td{border-bottom:none}
+
+/* ── BADGES ── */
+.badge{
+    display:inline-block;padding:3px 10px;border-radius:20px;
+    font-size:.6rem;font-weight:500;letter-spacing:.08em;text-transform:uppercase;
+}
+.badge-paid,.badge-delivered{background:rgba(78,203,141,0.12);color:#4ecb8d;border:1px solid rgba(78,203,141,0.2)}
+.badge-pending{background:rgba(224,184,107,0.12);color:#e0b86b;border:1px solid rgba(224,184,107,0.2)}
+.badge-unpaid,.badge-cancelled{background:rgba(224,107,107,0.12);color:#e06b6b;border:1px solid rgba(224,107,107,0.2)}
+.badge-live{background:rgba(201,168,76,0.12);color:var(--gold);border:1px solid rgba(201,168,76,0.2)}
+
+/* ── BUTTONS ── */
+.btn{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:8px 16px;border-radius:8px;font-size:.75rem;
+    font-family:'DM Sans',sans-serif;font-weight:500;
+    cursor:pointer;border:none;text-decoration:none;transition:all .2s;
+}
+.btn-gold{background:linear-gradient(135deg,var(--gold-light),var(--gold));color:#000}
+.btn-gold:hover{box-shadow:0 6px 20px rgba(201,168,76,0.35);transform:translateY(-1px)}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text-dim)}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+.btn-danger{background:rgba(224,107,107,0.1);border:1px solid rgba(224,107,107,0.2);color:#e06b6b}
+.btn-danger:hover{background:rgba(224,107,107,0.2)}
+
+/* ── FORMS ── */
+.form-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group label{font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim)}
+.form-control{
+    background:var(--bg3);border:1px solid var(--border);
+    border-radius:8px;padding:9px 12px;color:var(--text);
+    font-family:'DM Sans',sans-serif;font-size:.82rem;outline:none;
+    transition:border .2s;
+}
+.form-control:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(201,168,76,0.08)}
+.form-control::placeholder{color:var(--text-faint)}
+select.form-control option{background:var(--bg3)}
+
+/* ── MODAL ── */
+.modal-overlay{
+    display:none;position:fixed;inset:0;z-index:200;
+    background:rgba(0,0,0,0.6);backdrop-filter:blur(6px);
+    align-items:center;justify-content:center;
+}
+.modal-overlay.open{display:flex}
+.modal{
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:20px;padding:32px;width:100%;max-width:520px;
+    max-height:90vh;overflow-y:auto;
+    box-shadow:0 40px 80px rgba(0,0,0,0.5);
+    animation:modalIn .25s cubic-bezier(.16,1,.3,1);
+}
+@keyframes modalIn{from{opacity:0;transform:scale(.96) translateY(10px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:1.2rem;font-weight:600}
+.modal-close{background:none;border:none;color:var(--text-dim);font-size:1.1rem;cursor:pointer;padding:4px;transition:color .2s}
+.modal-close:hover{color:var(--text)}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(201,168,76,0.2);border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:rgba(201,168,76,0.35)}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+    .stats-grid{grid-template-columns:repeat(2,1fr)}
+    .grid-2,.grid-3{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+    <div class="sidebar-logo">
+        <div class="logo-gem"><i class="fas fa-gem"></i></div>
+        <div class="logo-text">
+            <div class="logo-name">Tara Adore</div>
+            <div class="logo-sub">Jewellery Analytics</div>
+        </div>
+    </div>
+
+    <nav class="nav-wrap">
+        <div class="nav-sec">Main</div>
+        <a href="/dashboard" class="nav-a {% if request.path=='/dashboard' %}active{% endif %}">
+            <i class="fas fa-chart-line"></i> Dashboard
+        </a>
+        <a href="/sales" class="nav-a {% if request.path=='/sales' %}active{% endif %}">
+            <i class="fas fa-shopping-bag"></i> Sales
+        </a>
+
+        <div class="nav-sec">Catalogue</div>
+        <a href="/products" class="nav-a {% if request.path=='/products' %}active{% endif %}">
+            <i class="fas fa-gem"></i> Products
+        </a>
+        <a href="/customers" class="nav-a {% if request.path=='/customers' %}active{% endif %}">
+            <i class="fas fa-users"></i> Customers
+        </a>
+        <a href="/analytics" class="nav-a {% if request.path=='/analytics' %}active{% endif %}">
+            <i class="fas fa-fire"></i> Analytics
+        </a>
+
+        <div class="nav-sec">Insights</div>
+        <a href="/reports" class="nav-a {% if request.path=='/reports' %}active{% endif %}">
+            <i class="fas fa-chart-bar"></i> Reports
+        </a>
+        <a href="/forecast" class="nav-a {% if request.path=='/forecast' %}active{% endif %}">
+            <i class="fas fa-brain"></i> Forecast
+        </a>
+
+        <div class="nav-sec">System</div>
+        <a href="/profile" class="nav-a {% if request.path=='/profile' %}active{% endif %}">
+            <i class="fas fa-user-circle"></i> Profile
+        </a>
+        <a href="/logout" class="nav-a">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </a>
+    </nav>
+
+    <div class="sidebar-footer">
+        <div class="sf-avatar">{{ session.get('admin', 'A')[0] }}</div>
+        <div class="sf-info">
+            <div class="sf-name">{{ session.get('admin', 'Admin') }}</div>
+            <div class="sf-role">Administrator</div>
+        </div>
+    </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main">
+    <!-- TOPBAR -->
+    <div class="topbar">
+        <div class="tb-title">{% block topbar_title %}Dashboard{% endblock %}</div>
+        <div class="tb-right">
+            <div class="theme-toggle" onclick="toggleTheme()">
+                <button class="tt-btn" id="btnDark"><i class="fas fa-moon"></i></button>
+                <button class="tt-btn" id="btnLight"><i class="fas fa-sun"></i></button>
+            </div>
+            <div class="tb-divider"></div>
+            <a href="/profile" class="tb-avatar">{{ session.get('admin', 'A')[0] }}</a>
+        </div>
+    </div>
+
+    <!-- PAGE CONTENT -->
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+</div>
+
+{% block extra_js %}{% endblock %}
+
+<script>
+const html = document.documentElement;
+const btnDark = document.getElementById('btnDark');
+const btnLight = document.getElementById('btnLight');
+let theme = localStorage.getItem('ta_theme') || 'dark';
+applyTheme(theme);
+
+function applyTheme(t){
+    theme = t;
+    html.setAttribute('data-theme', t);
+    localStorage.setItem('ta_theme', t);
+    if(t === 'dark'){
+        btnDark.classList.add('active');
+        btnLight.classList.remove('active');
+    } else {
+        btnLight.classList.add('active');
+        btnDark.classList.remove('active');
+    }
+}
+function toggleTheme(){ applyTheme(theme === 'dark' ? 'light' : 'dark'); }
+</script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Products{% endblock %}
+{% block topbar_title %}Product Catalog{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Jewellery Catalog</h2>
+    <p>Manage products, track stock and analyse performance</p>
+</div>
+
+<!-- CATEGORY SUMMARY CARDS -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px">
+    {% for cat in categories %}
+    <div class="stat-card gold" style="padding:16px">
+        <div class="stat-icon" style="margin-bottom:10px"><i class="fas fa-gem"></i></div>
+        <div class="stat-value" style="font-size:1.4rem">{{ cat.product_count }}</div>
+        <div class="stat-label">{{ cat.category }}</div>
+        <div style="font-size:.68rem;color:var(--muted);margin-top:6px">
+            Avg ₹{{ "{:,.0f}".format(cat.avg_price) }} · Stock {{ cat.total_stock }}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- ADD PRODUCT BUTTON -->
+<div style="display:flex;justify-content:flex-end;margin-bottom:16px">
+    <button onclick="document.getElementById('addModal').style.display='flex'"
+            class="btn btn-gold">
+        <i class="fas fa-plus"></i> Add Product
+    </button>
+</div>
+
+<!-- PRODUCTS TABLE -->
+<div class="card">
+    <div class="card-hd">
+        <div>
+            <div class="card-ttl">All Products</div>
+            <div class="card-sub">Complete jewellery catalog with performance data</div>
+        </div>
+        <span class="badge badge-live">{{ products|length }} Items</span>
+    </div>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Product Name</th>
+                <th>Category</th>
+                <th>Material</th>
+                <th>Weight</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Total Sold</th>
+                <th>Revenue</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in products %}
+            <tr>
+                <td style="color:var(--dim)">#{{ p.id }}</td>
+                <td style="color:var(--text);font-weight:500">{{ p.name }}</td>
+                <td>
+                    <span class="badge badge-shipped">{{ p.category }}</span>
+                </td>
+                <td style="color:var(--muted)">{{ p.material }}</td>
+                <td style="color:var(--muted)">{{ p.weight_grams }}g</td>
+                <td style="color:var(--g2);font-weight:500">₹{{ "{:,.0f}".format(p.price) }}</td>
+                <td>
+                    <span style="color:{% if p.stock_quantity > 5 %}var(--success){% elif p.stock_quantity > 0 %}var(--g2){% else %}var(--danger){% endif %}">
+                        {{ p.stock_quantity }}
+                    </span>
+                </td>
+                <td style="color:var(--info)">{{ p.total_sold or 0 }}</td>
+                <td style="color:var(--g2);font-weight:500">
+                    ₹{{ "{:,.0f}".format(p.total_revenue or 0) }}
+                </td>
+                <td>
+                    {% if p.stock_quantity > 5 %}
+                    <span class="badge badge-paid">In Stock</span>
+                    {% elif p.stock_quantity > 0 %}
+                    <span class="badge badge-pending">Low Stock</span>
+                    {% else %}
+                    <span class="badge badge-failed">Out of Stock</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="/delete_product/{{ p.id }}"
+                       onclick="return confirm('Delete this product?')"
+                       style="color:var(--danger);font-size:.75rem;text-decoration:none">
+                        <i class="fas fa-trash"></i>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- ADD PRODUCT MODAL -->
+<div id="addModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:999;align-items:center;justify-content:center">
+    <div style="background:#111;border:1px solid var(--border);border-radius:18px;padding:36px;width:520px;max-width:95vw;position:relative;animation:fadeUp .3s ease">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+            <div>
+                <div style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:600">Add New Product</div>
+                <div style="font-size:.72rem;color:var(--muted);margin-top:3px">Add to jewellery catalog</div>
+            </div>
+            <button onclick="document.getElementById('addModal').style.display='none'"
+                    style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form method="POST" action="/add_product">
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>Product Name</label>
+                    <input type="text" name="name" class="form-control" placeholder="e.g. Gold Ring Classic" required>
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select name="category" class="form-control" required>
+                        <option value="">Select category</option>
+                        <option>Ring</option>
+                        <option>Necklace</option>
+                        <option>Earring</option>
+                        <option>Bangle</option>
+                        <option>Bracelet</option>
+                        <option>Pendant</option>
+                        <option>Chain</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Material</label>
+                    <select name="material" class="form-control" required>
+                        <option value="">Select material</option>
+                        <option>Gold</option>
+                        <option>Silver</option>
+                        <option>Diamond</option>
+                        <option>Pearl</option>
+                        <option>Platinum</option>
+                        <option>Rose Gold</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Weight (grams)</label>
+                    <input type="number" name="weight_grams" class="form-control" placeholder="e.g. 5.5" step="0.1" required>
+                </div>
+                <div class="form-group">
+                    <label>Price (₹)</label>
+                    <input type="number" name="price" class="form-control" placeholder="e.g. 25000" required>
+                </div>
+                <div class="form-group">
+                    <label>Stock Quantity</label>
+                    <input type="number" name="stock_quantity" class="form-control" placeholder="e.g. 10" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea name="description" class="form-control" rows="2" placeholder="Short product description"></textarea>
+            </div>
+            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px">
+                <button type="button"
+                        onclick="document.getElementById('addModal').style.display='none'"
+                        class="btn btn-outline">Cancel</button>
+                <button type="submit" class="btn btn-gold">
+                    <i class="fas fa-plus"></i> Add Product
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

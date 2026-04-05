@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block topbar_title %}Business Reports{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Business Reports</h2>
+    <p>Monthly performance, top products & customer analysis</p>
+</div>
+
+<div style="display:flex;justify-content:flex-end;margin-bottom:20px">
+    <a href="/export/sales" class="btn btn-gold">
+        <i class="fas fa-download"></i> Export Sales CSV
+    </a>
+</div>
+
+<div class="grid-2" style="margin-bottom:18px">
+    <div class="card">
+        <div class="card-hd">
+            <div>
+                <div class="card-ttl">Monthly Revenue</div>
+                <div class="card-sub">Sales performance by month</div>
+            </div>
+        </div>
+        <canvas id="monthlyChart" height="200"></canvas>
+    </div>
+    <div class="card">
+        <div class="card-hd">
+            <div>
+                <div class="card-ttl">Top 5 Products</div>
+                <div class="card-sub">Best performing jewellery</div>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr><th>Product</th><th>Category</th><th>Sold</th><th>Revenue</th></tr>
+            </thead>
+            <tbody>
+                {% for p in top_products %}
+                <tr>
+                    <td style="color:var(--text)">{{ p.name }}</td>
+                    <td><span class="badge badge-shipped">{{ p.category }}</span></td>
+                    <td style="color:var(--info)">{{ p.sold or 0 }}</td>
+                    <td style="color:var(--g2);font-weight:500">₹{{ "{:,.0f}".format(p.revenue or 0) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="grid-2">
+    <div class="card">
+        <div class="card-hd">
+            <div>
+                <div class="card-ttl">Monthly Breakdown</div>
+                <div class="card-sub">Revenue & orders by month</div>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr><th>Month</th><th>Orders</th><th>Revenue</th></tr>
+            </thead>
+            <tbody>
+                {% for m in monthly %}
+                <tr>
+                    <td style="color:var(--text)">{{ m.month }}</td>
+                    <td style="color:var(--info)">{{ m.orders }}</td>
+                    <td style="color:var(--g2);font-weight:500">₹{{ "{:,.0f}".format(m.revenue) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="card">
+        <div class="card-hd">
+            <div>
+                <div class="card-ttl">Top 5 Customers</div>
+                <div class="card-sub">Highest spending customers</div>
+            </div>
+        </div>
+        <table>
+            <thead>
+                <tr><th>Name</th><th>City</th><th>Orders</th><th>Spent</th></tr>
+            </thead>
+            <tbody>
+                {% for c in top_customers %}
+                <tr>
+                    <td style="color:var(--text);font-weight:500">{{ c.name }}</td>
+                    <td style="color:var(--muted)">{{ c.city }}</td>
+                    <td style="color:var(--info)">{{ c.orders or 0 }}</td>
+                    <td style="color:var(--g2);font-weight:500">₹{{ "{:,.0f}".format(c.spent or 0) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var months  = [{% for m in monthly %}"{{ m.month }}"{% if not loop.last %},{% endif %}{% endfor %}];
+var revenue = [{% for m in monthly %}{{ m.revenue }}{% if not loop.last %},{% endif %}{% endfor %}];
+
+new Chart(document.getElementById('monthlyChart'), {
+    type: 'bar',
+    data: {
+        labels: months,
+        datasets: [{
+            label: 'Revenue (₹)',
+            data: revenue,
+            backgroundColor: 'rgba(201,168,76,0.15)',
+            borderColor: '#C9A84C',
+            borderWidth: 2,
+            borderRadius: 8
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { display: false },
+            tooltip: { backgroundColor: '#111', borderColor: 'rgba(201,168,76,0.25)', borderWidth: 1, titleColor: '#E8C97A', bodyColor: '#9e9a93' }
+        },
+        scales: {
+            x: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#6e6a63', font: { size: 10 } } },
+            y: { grid: { color: 'rgba(255,255,255,0.03)' }, ticks: { color: '#6e6a63', font: { size: 10 } } }
+        }
+    }
+});
+</script>
+{% endblock %}
