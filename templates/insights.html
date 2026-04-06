@@ -1,0 +1,475 @@
+{% extends "base.html" %}
+{% block title %}Business Insights{% endblock %}
+{% block topbar_title %}Business Insights{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Business Insights</h2>
+    <p>Profit margins · Festival calendar · Price elasticity · Dead stock analysis</p>
+</div>
+
+<!-- TAB NAV -->
+<div style="display:flex;gap:6px;margin-bottom:24px;flex-wrap:wrap">
+    <button class="ins-tab active" onclick="showTab('profit', this)">
+        <i class="fas fa-chart-line"></i> Profit Margins
+    </button>
+    <button class="ins-tab" onclick="showTab('festival', this)">
+        <i class="fas fa-calendar-alt"></i> Festival Calendar
+    </button>
+    <button class="ins-tab" onclick="showTab('elasticity', this)">
+        <i class="fas fa-tags"></i> Price Elasticity
+    </button>
+    <button class="ins-tab" onclick="showTab('deadstock', this)">
+        <i class="fas fa-box-open"></i> Dead Stock
+    </button>
+</div>
+
+<!-- TAB 1: PROFIT MARGINS -->
+<div id="tab-profit" class="ins-panel">
+    <div id="profitLoading" style="text-align:center;padding:40px;color:var(--text-dim)">
+        <i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:10px;display:block;color:var(--gold)"></i>
+        Loading profit data...
+    </div>
+    <div id="profitContent" style="display:none">
+        <div id="profitCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px"></div>
+        <div class="card" style="margin-bottom:20px">
+            <div style="margin-bottom:16px">
+                <div style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:600;color:var(--text)">Profit Margin by Product</div>
+                <div style="font-size:.72rem;color:var(--text-dim);margin-top:2px">Only products with cost price set are shown here</div>
+            </div>
+            <div id="marginBars"></div>
+        </div>
+        <div class="card">
+            <div style="margin-bottom:16px">
+                <div style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:600;color:var(--text)">Product Profit Details</div>
+                <div style="font-size:.72rem;color:var(--text-dim);margin-top:2px">Go to Products page and click "+ Set Cost" on any product to enable profit tracking</div>
+            </div>
+            <div style="overflow-x:auto">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product</th><th>Category</th><th>Cost Price</th>
+                            <th>Sell Price</th><th>Margin ₹</th><th>Margin %</th>
+                            <th>Units Sold</th><th>Total Profit</th><th>Health</th>
+                        </tr>
+                    </thead>
+                    <tbody id="profitTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 2: FESTIVAL CALENDAR -->
+<div id="tab-festival" class="ins-panel" style="display:none">
+    <div id="festLoading" style="text-align:center;padding:40px;color:var(--text-dim)">
+        <i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:10px;display:block;color:var(--gold)"></i>
+        Loading festival data...
+    </div>
+    <div id="festContent" style="display:none">
+        <div style="background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.2);border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:.82rem;color:var(--text-dim)">
+            <i class="fas fa-lightbulb" style="color:var(--gold);margin-right:6px"></i>
+            Each card shows your <strong style="color:var(--text)">actual sales data</strong> overlaid with Indian festival context — plan your stock and promotions ahead.
+        </div>
+        <div id="festGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px"></div>
+    </div>
+</div>
+
+<!-- TAB 3: PRICE ELASTICITY -->
+<div id="tab-elasticity" class="ins-panel" style="display:none">
+    <div id="elastLoading" style="text-align:center;padding:40px;color:var(--text-dim)">
+        <i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:10px;display:block;color:var(--gold)"></i>
+        Analysing price sensitivity...
+    </div>
+    <div id="elastContent" style="display:none">
+        <div class="card" style="margin-bottom:20px">
+            <div style="margin-bottom:16px">
+                <div style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:600;color:var(--text)">Revenue by Price Band</div>
+                <div style="font-size:.72rem;color:var(--text-dim);margin-top:2px">Which price segments drive the most orders and revenue</div>
+            </div>
+            <div id="bandBars"></div>
+        </div>
+        <div class="card">
+            <div style="margin-bottom:16px">
+                <div style="font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:600;color:var(--text)">Price Sensitivity per Product</div>
+                <div style="font-size:.72rem;color:var(--text-dim);margin-top:2px">Based on price vs volume sold relative to catalog average</div>
+            </div>
+            <div style="overflow-x:auto">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Product</th><th>Category</th><th>Price</th>
+                            <th>Units Sold</th><th>Revenue</th><th>Sensitivity</th><th>Recommendation</th>
+                        </tr>
+                    </thead>
+                    <tbody id="elastTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TAB 4: DEAD STOCK -->
+<div id="tab-deadstock" class="ins-panel" style="display:none">
+    <div id="deadLoading" style="text-align:center;padding:40px;color:var(--text-dim)">
+        <i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:10px;display:block;color:var(--gold)"></i>
+        Scanning for stagnant inventory...
+    </div>
+    <div id="deadContent" style="display:none">
+        <div id="deadSummary"></div>
+        <div id="deadCards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:16px"></div>
+        <div id="deadEmpty" style="display:none;text-align:center;padding:48px">
+            <i class="fas fa-check-circle" style="font-size:2.5rem;color:#4ecb8d;display:block;margin-bottom:14px"></i>
+            <div style="color:var(--text);font-weight:600;font-size:1rem;margin-bottom:6px">No Dead Stock Found!</div>
+            <div style="color:var(--text-dim);font-size:.85rem">All products have sold within the last 90 days. 🎉</div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* ── TAB BUTTONS ── */
+.ins-tab{
+    background:rgba(255,255,255,0.04);
+    border:1px solid rgba(201,168,76,0.18);
+    border-radius:8px;color:var(--text-dim);
+    padding:9px 16px;font-size:.8rem;
+    font-family:'DM Sans',sans-serif;font-weight:500;
+    cursor:pointer;display:inline-flex;align-items:center;gap:7px;transition:all .2s;
+}
+.ins-tab.active{
+    background:linear-gradient(135deg,rgba(232,201,122,0.15),rgba(201,168,76,0.08));
+    border-color:rgba(201,168,76,0.5);color:var(--gold-light);
+}
+.ins-tab:hover:not(.active){border-color:rgba(201,168,76,0.3);color:var(--text);}
+
+/* ── BAR CHART ROWS ── */
+.bar-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.bar-label{width:160px;font-size:.8rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
+.bar-track{flex:1;height:10px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden}
+.bar-fill{height:100%;border-radius:6px;transition:width .7s ease}
+.bar-val{width:70px;text-align:right;font-size:.8rem;font-weight:600;flex-shrink:0}
+
+/* ── FESTIVAL CARDS ── */
+.fest-card{
+    background:rgba(255,255,255,0.02);
+    border:1px solid rgba(201,168,76,0.1);
+    border-radius:14px;padding:18px;transition:border-color .2s,transform .2s;
+}
+.fest-card:hover{border-color:rgba(201,168,76,0.3);transform:translateY(-2px)}
+.fest-card.has-data{border-color:rgba(201,168,76,0.22);background:rgba(201,168,76,0.03)}
+
+/* ── DEAD STOCK CARDS ── */
+.dead-card{background:rgba(255,255,255,0.02);border-radius:14px;padding:20px;border-left:4px solid;transition:transform .2s}
+.dead-card:hover{transform:translateY(-2px)}
+.dead-critical{border-color:#e06b6b}
+.dead-high{border-color:#e0b86b}
+.dead-medium{border-color:#5cb8e0}
+
+/* ── INSIGHT BADGES (local to this page) ── */
+.ibadge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:.6rem;font-weight:500;letter-spacing:.08em;text-transform:uppercase}
+.ib-healthy{background:rgba(78,203,141,0.12);color:#4ecb8d;border:1px solid rgba(78,203,141,0.2)}
+.ib-moderate{background:rgba(224,184,107,0.12);color:#e0b86b;border:1px solid rgba(224,184,107,0.2)}
+.ib-low{background:rgba(224,107,107,0.12);color:#e06b6b;border:1px solid rgba(224,107,107,0.2)}
+.ib-high-s{background:rgba(224,107,107,0.12);color:#e06b6b;border:1px solid rgba(224,107,107,0.2)}
+.ib-med-s{background:rgba(224,184,107,0.12);color:#e0b86b;border:1px solid rgba(224,184,107,0.2)}
+.ib-low-s{background:rgba(78,203,141,0.12);color:#4ecb8d;border:1px solid rgba(78,203,141,0.2)}
+.ib-critical{background:rgba(224,107,107,0.1);color:#e06b6b;border:1px solid rgba(224,107,107,0.3)}
+.ib-high-u{background:rgba(224,184,107,0.1);color:#e0b86b;border:1px solid rgba(224,184,107,0.3)}
+.ib-med-u{background:rgba(92,184,224,0.1);color:#5cb8e0;border:1px solid rgba(92,184,224,0.3)}
+</style>
+
+<script>
+const fmt  = n => '₹' + (parseFloat(n)||0).toLocaleString('en-IN',{maximumFractionDigits:0});
+const fmtN = n => (parseFloat(n)||0).toLocaleString('en-IN',{maximumFractionDigits:0});
+
+/* ── TAB SWITCHING ── */
+const loaded = {};
+function showTab(name, btn) {
+    document.querySelectorAll('.ins-panel').forEach(p => p.style.display='none');
+    document.querySelectorAll('.ins-tab').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-'+name).style.display='block';
+    if(btn) btn.classList.add('active');
+    if(!loaded[name]){ loaded[name]=true; loadTab(name); }
+}
+function loadTab(n){
+    if(n==='profit')     loadProfit();
+    if(n==='festival')   loadFestival();
+    if(n==='elasticity') loadElastic();
+    if(n==='deadstock')  loadDead();
+}
+window.addEventListener('DOMContentLoaded', ()=>{ loaded['profit']=true; loadProfit(); });
+
+/* ── 1. PROFIT MARGINS ── */
+async function loadProfit(){
+    try{
+        const res = await fetch('/api/profit_margins');
+        const data = await res.json();
+        if(data.error) throw new Error(data.error);
+
+        document.getElementById('profitLoading').style.display='none';
+        document.getElementById('profitContent').style.display='block';
+
+        const withCost    = data.filter(p=>p.cost_price>0);
+        const totalProfit = withCost.reduce((s,p)=>s+(p.total_profit||0),0);
+        const totalRev    = data.reduce((s,p)=>s+p.total_revenue,0);
+        const avgMargin   = withCost.length ? withCost.reduce((s,p)=>s+(p.margin_pct||0),0)/withCost.length : 0;
+
+        document.getElementById('profitCards').innerHTML=`
+            <div class="stat-card gold" style="padding:16px">
+                <div class="stat-icon"><i class="fas fa-rupee-sign"></i></div>
+                <div class="stat-value" style="font-size:1.3rem">${fmt(totalProfit)}</div>
+                <div class="stat-label">Total Tracked Profit</div>
+            </div>
+            <div class="stat-card green" style="padding:16px">
+                <div class="stat-icon"><i class="fas fa-percent"></i></div>
+                <div class="stat-value" style="font-size:1.3rem">${avgMargin.toFixed(1)}%</div>
+                <div class="stat-label">Avg Profit Margin</div>
+            </div>
+            <div class="stat-card blue" style="padding:16px">
+                <div class="stat-icon"><i class="fas fa-boxes"></i></div>
+                <div class="stat-value" style="font-size:1.3rem">${withCost.length}/${data.length}</div>
+                <div class="stat-label">Products with Cost Set</div>
+            </div>
+            <div class="stat-card gold" style="padding:16px">
+                <div class="stat-icon"><i class="fas fa-chart-bar"></i></div>
+                <div class="stat-value" style="font-size:1.3rem">${fmt(totalRev)}</div>
+                <div class="stat-label">Total Revenue</div>
+            </div>`;
+
+        /* Bar chart */
+        if(withCost.length===0){
+            document.getElementById('marginBars').innerHTML=`
+                <div style="padding:20px;color:var(--text-dim);font-size:.85rem;text-align:center">
+                    <i class="fas fa-info-circle" style="color:var(--gold);margin-right:6px"></i>
+                    No products have cost prices set. Go to <strong>Products</strong> page and click <strong>"+ Set Cost"</strong> to unlock profit tracking.
+                </div>`;
+        } else {
+            const sorted=[...withCost].sort((a,b)=>b.margin_pct-a.margin_pct);
+            const maxPct=sorted[0].margin_pct||1;
+            document.getElementById('marginBars').innerHTML=sorted.map(p=>{
+                const pct=p.margin_pct||0;
+                const color=pct>=40?'#4ecb8d':pct>=20?'#C9A84C':'#e06b6b';
+                return `<div class="bar-row">
+                    <div class="bar-label" title="${p.name}">${p.name}</div>
+                    <div class="bar-track"><div class="bar-fill" style="width:${(pct/maxPct*100).toFixed(1)}%;background:${color}"></div></div>
+                    <div class="bar-val" style="color:${color}">${pct.toFixed(1)}%</div>
+                </div>`;
+            }).join('');
+        }
+
+        /* Table */
+        document.getElementById('profitTable').innerHTML=data.map(p=>{
+            const h=p.cost_price>0, pct=p.margin_pct;
+            const mc=!h?'var(--text-faint)':pct>=40?'#4ecb8d':pct>=20?'#C9A84C':'#e06b6b';
+            const badge=!h
+                ?`<span class="ibadge" style="background:rgba(255,255,255,0.05);color:var(--text-dim)">No cost set</span>`
+                :pct>=40?`<span class="ibadge ib-healthy">Healthy</span>`
+                :pct>=20?`<span class="ibadge ib-moderate">Moderate</span>`
+                :`<span class="ibadge ib-low">Low</span>`;
+            return `<tr>
+                <td style="font-weight:500;color:var(--text)">${p.name}</td>
+                <td><span class="badge badge-live">${p.category}</span></td>
+                <td style="color:var(--text-dim)">${h?fmt(p.cost_price):'<span style="color:var(--text-faint)">—</span>'}</td>
+                <td style="color:var(--gold);font-weight:500">${fmt(p.selling_price)}</td>
+                <td style="color:${mc}">${h?fmt(p.margin_amount):'—'}</td>
+                <td style="font-weight:600;color:${mc}">${h?pct.toFixed(1)+'%':'—'}</td>
+                <td style="color:#5cb8e0">${p.total_sold}</td>
+                <td style="color:var(--gold);font-weight:500">${h&&p.total_profit!==null?fmt(p.total_profit):'<span style="color:var(--text-faint)">—</span>'}</td>
+                <td>${badge}</td>
+            </tr>`;
+        }).join('');
+
+    } catch(e){
+        document.getElementById('profitLoading').innerHTML=`<div style="color:#e06b6b;padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> Error: ${e.message}</div>`;
+    }
+}
+
+/* ── 2. FESTIVAL CALENDAR ── */
+async function loadFestival(){
+    try{
+        const res = await fetch('/api/festival_calendar');
+        const data = await res.json();
+        if(data.error) throw new Error(data.error);
+
+        document.getElementById('festLoading').style.display='none';
+        document.getElementById('festContent').style.display='block';
+
+        const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        const maxRev=Math.max(...data.map(f=>f.revenue||0),1);
+
+        document.getElementById('festGrid').innerHTML=data.map(f=>{
+            const has=f.revenue>0;
+            const w=has?((f.revenue/maxRev)*100).toFixed(0):0;
+            return `<div class="fest-card ${has?'has-data':''}">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                    <span style="font-size:1.8rem;line-height:1">${f.icon}</span>
+                    <div>
+                        <div style="font-size:.6rem;color:var(--text-faint);text-transform:uppercase;letter-spacing:.08em;font-weight:600">${months[f.month-1]}</div>
+                        <div style="font-size:.88rem;font-weight:600;color:var(--text);line-height:1.2">${f.name}</div>
+                    </div>
+                </div>
+                <div style="font-size:.75rem;color:var(--text-dim);margin-bottom:12px;font-style:italic;line-height:1.5">${f.tip}</div>
+                ${has ? `
+                <div style="margin-bottom:10px">
+                    <div style="display:flex;justify-content:space-between;font-size:.7rem;color:var(--text-faint);margin-bottom:4px">
+                        <span>Revenue this month</span>
+                        <span style="color:var(--gold);font-weight:600">${fmt(f.revenue)}</span>
+                    </div>
+                    <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden">
+                        <div style="height:100%;width:${w}%;background:linear-gradient(90deg,#E8C97A,#C9A84C);border-radius:4px"></div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:20px">
+                    <div><div style="font-size:.65rem;color:var(--text-faint)">Orders</div><div style="font-size:.95rem;font-weight:600;color:var(--text)">${fmtN(f.orders)}</div></div>
+                    <div><div style="font-size:.65rem;color:var(--text-faint)">Avg Order</div><div style="font-size:.95rem;font-weight:600;color:var(--gold)">${fmt(f.avg_order)}</div></div>
+                </div>` : `
+                <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(255,255,255,0.02);border-radius:6px;border:1px dashed rgba(201,168,76,0.15)">
+                    <i class="fas fa-lightbulb" style="color:var(--gold);font-size:.72rem"></i>
+                    <span style="font-size:.75rem;color:var(--text-faint)">No sales yet — plan ahead!</span>
+                </div>`}
+            </div>`;
+        }).join('');
+
+    } catch(e){
+        document.getElementById('festLoading').innerHTML=`<div style="color:#e06b6b;padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> Error: ${e.message}</div>`;
+    }
+}
+
+/* ── 3. PRICE ELASTICITY ── */
+async function loadElastic(){
+    try{
+        const res = await fetch('/api/price_elasticity');
+        const data = await res.json();
+        if(data.error) throw new Error(data.error);
+
+        document.getElementById('elastLoading').style.display='none';
+        document.getElementById('elastContent').style.display='block';
+
+        /* Price band bars */
+        const maxBand=Math.max(...data.bands.map(b=>b.revenue),1);
+        document.getElementById('bandBars').innerHTML=data.bands.length===0
+            ?`<div style="padding:16px;color:var(--text-dim);font-size:.85rem;text-align:center">No sales data yet.</div>`
+            :data.bands.map(b=>{
+                const w=((b.revenue/maxBand)*100).toFixed(0);
+                return `<div class="bar-row">
+                    <div class="bar-label">${b.band}</div>
+                    <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:linear-gradient(90deg,#E8C97A,#C9A84C)"></div></div>
+                    <div class="bar-val" style="color:var(--gold)">${fmt(b.revenue)}</div>
+                </div>
+                <div style="font-size:.68rem;color:var(--text-faint);margin:-8px 0 10px 172px">${b.orders} orders · ${b.products} product(s)</div>`;
+            }).join('');
+
+        /* Product table */
+        const sensBadge = s => s==='High'?'ib-high-s':s==='Medium'?'ib-med-s':'ib-low-s';
+        document.getElementById('elastTable').innerHTML=data.products.length===0
+            ?`<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-dim)">No products with sales data yet.</td></tr>`
+            :data.products.map(p=>`<tr>
+                <td style="font-weight:500;color:var(--text)">${p.name}</td>
+                <td><span class="badge badge-live">${p.category}</span></td>
+                <td style="color:var(--gold);font-weight:500">${fmt(p.price)}</td>
+                <td style="color:#5cb8e0">${p.total_units}</td>
+                <td style="color:var(--gold)">${fmt(p.total_revenue)}</td>
+                <td><span class="ibadge ${sensBadge(p.sensitivity)}">${p.sensitivity}</span></td>
+                <td style="font-size:.78rem;color:var(--text-dim)">${p.recommendation}</td>
+            </tr>`).join('');
+
+    } catch(e){
+        document.getElementById('elastLoading').innerHTML=`<div style="color:#e06b6b;padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> Error: ${e.message}</div>`;
+    }
+}
+
+/* ── 4. DEAD STOCK ── */
+async function loadDead(){
+    try{
+        const res = await fetch('/api/dead_stock_analysis');
+        const data = await res.json();
+        if(data.error) throw new Error(data.error);
+
+        document.getElementById('deadLoading').style.display='none';
+        document.getElementById('deadContent').style.display='block';
+
+        if(data.length===0){ document.getElementById('deadEmpty').style.display='block'; return; }
+
+        const tv=data.reduce((s,p)=>s+p.stock_value,0);
+        const tr=data.reduce((s,p)=>s+p.holding_cost_risk,0);
+        const crit=data.filter(p=>p.urgency==='Critical').length;
+
+        document.getElementById('deadSummary').innerHTML=`
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:20px">
+                <div class="stat-card red" style="padding:16px">
+                    <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="stat-value" style="font-size:1.3rem">${data.length}</div>
+                    <div class="stat-label">Dead Stock Items</div>
+                    <div style="font-size:.68rem;color:#e06b6b;margin-top:6px">${crit} critical</div>
+                </div>
+                <div class="stat-card" style="padding:16px;border-top:2px solid #e0b86b">
+                    <div class="stat-icon" style="color:#e0b86b"><i class="fas fa-warehouse"></i></div>
+                    <div class="stat-value" style="font-size:1.3rem">${fmt(tv)}</div>
+                    <div class="stat-label">Locked Inventory Value</div>
+                </div>
+                <div class="stat-card blue" style="padding:16px">
+                    <div class="stat-icon"><i class="fas fa-clock"></i></div>
+                    <div class="stat-value" style="font-size:1.3rem">${fmt(tr)}</div>
+                    <div class="stat-label">Est. Annual Holding Cost</div>
+                </div>
+            </div>`;
+
+        const uc={'Critical':'dead-critical','High':'dead-high','Medium':'dead-medium'};
+        const ub={'Critical':'ib-critical','High':'ib-high-u','Medium':'ib-med-u'};
+        const ucol={'Critical':'#e06b6b','High':'#e0b86b','Medium':'#5cb8e0'};
+
+        document.getElementById('deadCards').innerHTML=data.map(p=>`
+            <div class="dead-card ${uc[p.urgency]}">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+                    <div style="flex:1;min-width:0;margin-right:10px">
+                        <div style="font-weight:600;color:var(--text);font-size:.95rem;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</div>
+                        <div style="display:flex;gap:6px;flex-wrap:wrap">
+                            <span class="badge badge-live">${p.category}</span>
+                            ${p.material?`<span style="font-size:.7rem;color:var(--text-dim)">${p.material}</span>`:''}
+                        </div>
+                    </div>
+                    <span class="ibadge ${ub[p.urgency]}">${p.urgency}</span>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+                    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:10px">
+                        <div style="font-size:.65rem;color:var(--text-faint);margin-bottom:3px">Stock Value</div>
+                        <div style="font-weight:600;color:var(--gold)">${fmt(p.stock_value)}</div>
+                        <div style="font-size:.68rem;color:var(--text-faint);margin-top:2px">${p.stock_quantity} units × ${fmt(p.price)}</div>
+                    </div>
+                    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);border-radius:8px;padding:10px">
+                        <div style="font-size:.65rem;color:var(--text-faint);margin-bottom:3px">Last Sold</div>
+                        <div style="font-weight:600;color:var(--text)">${p.last_sold?String(p.last_sold).split(' ')[0]:'Never'}</div>
+                        <div style="font-size:.68rem;color:${ucol[p.urgency]};margin-top:2px">${p.days_since_sold?p.days_since_sold+' days ago':'No sales ever'}</div>
+                    </div>
+                </div>
+                <div style="background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.18);border-radius:8px;padding:12px;margin-bottom:12px">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                        <span style="font-size:.72rem;color:var(--text-dim)">Recommended discount</span>
+                        <span style="font-weight:700;color:var(--gold);font-size:.9rem">${p.discount_rec}% off</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center">
+                        <span style="font-size:.72rem;color:var(--text-dim)">Liquidation price</span>
+                        <span style="font-weight:700;color:var(--text)">${fmt(p.discounted_price)}</span>
+                    </div>
+                    ${p.profit_at_discount!==null?`
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.05)">
+                        <span style="font-size:.72rem;color:var(--text-dim)">Profit at this price</span>
+                        <span style="font-weight:600;color:${p.profit_at_discount>=0?'#4ecb8d':'#e06b6b'}">${fmt(p.profit_at_discount)}</span>
+                    </div>`:''}
+                </div>
+                <div>
+                    <div style="font-size:.65rem;color:var(--text-faint);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.06em">Liquidation Strategies</div>
+                    ${p.strategies.map(s=>`
+                    <div style="display:flex;align-items:flex-start;gap:7px;margin-bottom:6px">
+                        <i class="fas fa-lightbulb" style="color:var(--gold);font-size:.68rem;margin-top:3px;flex-shrink:0"></i>
+                        <span style="font-size:.78rem;color:var(--text-dim);line-height:1.4">${s}</span>
+                    </div>`).join('')}
+                </div>
+            </div>`).join('');
+
+    } catch(e){
+        document.getElementById('deadLoading').innerHTML=`<div style="color:#e06b6b;padding:20px;text-align:center"><i class="fas fa-exclamation-triangle"></i> Error: ${e.message}</div>`;
+    }
+}
+</script>
+{% endblock %}
