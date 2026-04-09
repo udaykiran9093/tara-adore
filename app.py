@@ -277,16 +277,35 @@ def sales():
                            date_to=date_to,
                            selected_payment=pay_status)
 
+# ── ADD SALE (supports existing or new customer) ──────────────────────────────
 @app.route('/add_sale', methods=['POST'])
 def add_sale():
     if 'admin' not in session:
         return redirect('/login')
-    customer_id = request.form['customer_id']
-    product_id  = request.form['product_id']
-    quantity    = int(request.form['quantity'])
-    sale_date   = request.form['sale_date']
-    db = get_db()
+
+    customer_id       = request.form.get('customer_id', '').strip()
+    new_customer_name = request.form.get('new_customer_name', '').strip()
+    product_id        = request.form['product_id']
+    quantity          = int(request.form['quantity'])
+    sale_date         = request.form['sale_date']
+
+    db  = get_db()
     cur = db.cursor()
+
+    # If no existing customer selected but new name provided, create them
+    if not customer_id and new_customer_name:
+        cur.execute("""
+            INSERT INTO customers (name, email, phone, city, state, pincode)
+            VALUES (%s, '', '', '', '', '')
+        """, (new_customer_name,))
+        db.commit()
+        customer_id = cur.lastrowid
+
+    # If still no customer, redirect with error
+    if not customer_id:
+        db.close()
+        return redirect('/sales?error=Please+select+or+enter+a+customer+name')
+
     cur.execute("SELECT price FROM products WHERE id=%s", (product_id,))
     price = cur.fetchone()['price']
     total = price * quantity
@@ -370,7 +389,6 @@ def products():
     db  = get_db()
     cur = db.cursor()
 
-    # Ensure cost_price column exists
     try:
         cur.execute("ALTER TABLE products ADD COLUMN cost_price DECIMAL(10,2) DEFAULT NULL")
         db.commit()
@@ -419,7 +437,6 @@ def add_product():
         return redirect('/login')
     db = get_db()
     cur = db.cursor()
-    # Ensure cost_price column exists
     try:
         cur.execute("ALTER TABLE products ADD COLUMN cost_price DECIMAL(10,2) DEFAULT NULL")
         db.commit()
@@ -700,59 +717,43 @@ def analytics():
         return redirect('/login')
     db = get_db()
     cur = db.cursor()
-
     cur.execute("""
-        SELECT DAYNAME(sale_date) as day_name,
-               DAYOFWEEK(sale_date) as day_num,
-               COUNT(*) as orders,
-               SUM(total_amount) as revenue
-        FROM sales
-        GROUP BY DAYNAME(sale_date), DAYOFWEEK(sale_date)
+        SELECT DAYNAME(sale_date) as day_name, DAYOFWEEK(sale_date) as day_num,
+               COUNT(*) as orders, SUM(total_amount) as revenue
+        FROM sales GROUP BY DAYNAME(sale_date), DAYOFWEEK(sale_date)
         ORDER BY DAYOFWEEK(sale_date)
     """)
     weekly_data = cur.fetchall()
-
     cur.execute("""
         SELECT p.id, p.name, p.category, p.stock_quantity, p.price,
                MAX(s.sale_date) as last_sold
-        FROM products p
-        LEFT JOIN sales s ON p.id = s.product_id
+        FROM products p LEFT JOIN sales s ON p.id = s.product_id
         GROUP BY p.id, p.name, p.category, p.stock_quantity, p.price
         HAVING last_sold IS NULL OR last_sold < DATE_SUB(CURDATE(), INTERVAL 30 DAY)
         ORDER BY last_sold ASC
     """)
     dead_stock = cur.fetchall()
-
     cur.execute("""
-        SELECT MONTH(sale_date) as month_num,
-               MONTHNAME(sale_date) as month_name,
-               p.category,
-               SUM(s.total_amount) as revenue
-        FROM sales s
-        JOIN products p ON s.product_id = p.id
+        SELECT MONTH(sale_date) as month_num, MONTHNAME(sale_date) as month_name,
+               p.category, SUM(s.total_amount) as revenue
+        FROM sales s JOIN products p ON s.product_id = p.id
         GROUP BY MONTH(sale_date), MONTHNAME(sale_date), p.category
         ORDER BY month_num
     """)
     seasonal = cur.fetchall()
-
     cur.execute("""
         SELECT c.id, c.name, c.city,
                DATEDIFF(CURDATE(), MAX(s.sale_date)) as recency,
                COUNT(s.id) as frequency,
                COALESCE(SUM(s.total_amount), 0) as monetary
-        FROM customers c
-        LEFT JOIN sales s ON c.id = s.customer_id
-        GROUP BY c.id, c.name, c.city
-        ORDER BY monetary DESC
+        FROM customers c LEFT JOIN sales s ON c.id = s.customer_id
+        GROUP BY c.id, c.name, c.city ORDER BY monetary DESC
     """)
     rfm_data = cur.fetchall()
-
     cur.execute("SELECT name, stock_quantity, category FROM products WHERE stock_quantity <= 5 ORDER BY stock_quantity ASC")
     low_stock = cur.fetchall()
-
     cur.execute("SELECT COALESCE(SUM(total_amount),0) as total FROM sales WHERE payment_status='Paid'")
     total_rev = cur.fetchone()['total'] or 0
-
     db.close()
 
     rfm_scored = []
@@ -775,31 +776,22 @@ def analytics():
 
     notifications = []
     for p in low_stock:
-        notifications.append({
-            'type': 'warning',
+        notifications.append({'type': 'warning',
             'message': f"Low stock alert: {p['name']} — only {p['stock_quantity']} left!",
-            'icon': 'fa-exclamation-triangle'
-        })
+            'icon': 'fa-exclamation-triangle'})
     if float(total_rev) >= 200000:
-        notifications.append({
-            'type': 'success',
+        notifications.append({'type': 'success',
             'message': f"🏆 Revenue milestone reached! Total: ₹{total_rev:,.0f}",
-            'icon': 'fa-trophy'
-        })
+            'icon': 'fa-trophy'})
     if not notifications:
-        notifications.append({
-            'type': 'success',
+        notifications.append({'type': 'success',
             'message': '✅ All systems normal. Stock levels are healthy!',
-            'icon': 'fa-check-circle'
-        })
+            'icon': 'fa-check-circle'})
 
     return render_template('analytics.html',
-                           weekly_data=weekly_data,
-                           dead_stock=dead_stock,
-                           seasonal=seasonal,
-                           rfm_scored=rfm_scored,
-                           notifications=notifications,
-                           total_rev=total_rev)
+                           weekly_data=weekly_data, dead_stock=dead_stock,
+                           seasonal=seasonal, rfm_scored=rfm_scored,
+                           notifications=notifications, total_rev=total_rev)
 
 # ── AI ADVISOR ───────────────────────────────────────────────────────────────
 @app.route('/ai_advisor', methods=['POST'])
@@ -819,139 +811,89 @@ def ai_advisor():
     try:
         db = get_db()
         cur = db.cursor()
-
         cur.execute("SELECT COALESCE(SUM(total_amount),0) as total FROM sales WHERE payment_status='Paid'")
         total_rev = float(cur.fetchone()['total'] or 0)
-
-        cur.execute("""
-            SELECT p.name, p.category, COUNT(s.id) as sold,
-                   COALESCE(SUM(s.total_amount),0) as revenue
+        cur.execute("""SELECT p.name, p.category, COUNT(s.id) as sold, COALESCE(SUM(s.total_amount),0) as revenue
             FROM products p LEFT JOIN sales s ON p.id=s.product_id
-            GROUP BY p.id, p.name, p.category ORDER BY revenue DESC LIMIT 1
-        """)
+            GROUP BY p.id, p.name, p.category ORDER BY revenue DESC LIMIT 1""")
         top_product = cur.fetchone()
-
-        cur.execute("""
-            SELECT p.name, p.category, COUNT(s.id) as sold
+        cur.execute("""SELECT p.name, p.category, COUNT(s.id) as sold
             FROM products p LEFT JOIN sales s ON p.id=s.product_id
-            GROUP BY p.id, p.name, p.category ORDER BY sold ASC LIMIT 1
-        """)
+            GROUP BY p.id, p.name, p.category ORDER BY sold ASC LIMIT 1""")
         low_product = cur.fetchone()
-
-        cur.execute("""
-            SELECT c.name, COALESCE(SUM(s.total_amount),0) as spent
+        cur.execute("""SELECT c.name, COALESCE(SUM(s.total_amount),0) as spent
             FROM customers c JOIN sales s ON c.id=s.customer_id
-            GROUP BY c.id, c.name ORDER BY spent DESC LIMIT 1
-        """)
+            GROUP BY c.id, c.name ORDER BY spent DESC LIMIT 1""")
         top_customer = cur.fetchone()
-
         cur.execute("SELECT COUNT(*) as cnt FROM customers")
         total_customers = cur.fetchone()['cnt'] or 0
-
         cur.execute("SELECT COUNT(*) as cnt FROM sales")
         total_orders = cur.fetchone()['cnt'] or 0
-
         cur.execute("SELECT name, stock_quantity FROM products WHERE stock_quantity <= 5")
         low_stock = cur.fetchall()
-
-        cur.execute("""
-            SELECT DATE_FORMAT(sale_date,'%b %Y') as month, SUM(total_amount) as rev
+        cur.execute("""SELECT DATE_FORMAT(sale_date,'%b %Y') as month, SUM(total_amount) as rev
             FROM sales GROUP BY DATE_FORMAT(sale_date,'%Y-%m'), DATE_FORMAT(sale_date,'%b %Y')
-            ORDER BY MIN(sale_date) DESC LIMIT 1
-        """)
+            ORDER BY MIN(sale_date) DESC LIMIT 1""")
         latest_month = cur.fetchone()
-
-        cur.execute("""
-            SELECT p.category, COALESCE(SUM(s.total_amount),0) as revenue
+        cur.execute("""SELECT p.category, COALESCE(SUM(s.total_amount),0) as revenue
             FROM sales s JOIN products p ON s.product_id=p.id
-            GROUP BY p.category ORDER BY revenue DESC LIMIT 1
-        """)
+            GROUP BY p.category ORDER BY revenue DESC LIMIT 1""")
         top_category = cur.fetchone()
-
         cur.execute("SELECT COUNT(*) as cnt FROM products")
         total_products = cur.fetchone()['cnt'] or 0
-
         db.close()
-
     except Exception as e:
         return jsonify({'response': f'Database error: {str(e)}'}), 500
 
     response = ""
-
     if any(w in question for w in ['hello','hi','hey','namaste','good morning','good evening']):
         response = f"👋 Hello! I'm your AI Business Advisor for Tara Adore.\n\nYou have ₹{total_rev:,.0f} in total revenue, {total_customers} customers and {total_orders} orders. Ask me anything!"
-
     elif any(w in question for w in ['revenue','earning','money','total','income','how much']):
         response = f"💰 Total Revenue: ₹{total_rev:,.0f}\n📦 Total Orders: {total_orders}\n👥 Customers: {total_customers}"
         if latest_month:
             response += f"\n📅 Latest month ({latest_month['month']}): ₹{float(latest_month['rev']):,.0f}"
-        if total_rev >= 200000:
-            response += "\n\n🎉 Excellent! You've crossed the ₹2 lakh milestone!"
-        else:
-            response += f"\n\n🎯 ₹{200000 - total_rev:,.0f} more to reach the ₹2 lakh milestone!"
-
+        response += "\n\n🎉 Excellent! You've crossed the ₹2 lakh milestone!" if total_rev >= 200000 else f"\n\n🎯 ₹{200000 - total_rev:,.0f} more to reach the ₹2 lakh milestone!"
     elif any(w in question for w in ['best','top','popular','selling','highest','most']):
         if top_product:
             response = f"💎 Best Product: {top_product['name']} ({top_product['category']})\n💵 Revenue: ₹{float(top_product['revenue']):,.0f}\n📦 Units Sold: {top_product['sold']}"
-        if top_category:
-            response += f"\n\n🏆 Top Category: {top_category['category']} — ₹{float(top_category['revenue']):,.0f}"
-        if top_customer:
-            response += f"\n\n👑 Top Customer: {top_customer['name']} — ₹{float(top_customer['spent']):,.0f}"
-
+        if top_category: response += f"\n\n🏆 Top Category: {top_category['category']} — ₹{float(top_category['revenue']):,.0f}"
+        if top_customer: response += f"\n\n👑 Top Customer: {top_customer['name']} — ₹{float(top_customer['spent']):,.0f}"
     elif any(w in question for w in ['worst','slow','poor','least','bad']):
         if low_product:
             response = f"📉 Slowest Product: {low_product['name']} ({low_product['category']}) with only {low_product['sold'] or 0} units sold.\n\n💡 Try a discount or bundle deal to move this stock."
-
     elif any(w in question for w in ['stock','inventory','restock','supply','lock','available']):
         if low_stock:
             response = "⚠️ Low Stock Alert!\n"
-            for p in low_stock:
-                response += f"• {p['name']} — only {p['stock_quantity']} left\n"
+            for p in low_stock: response += f"• {p['name']} — only {p['stock_quantity']} left\n"
             response += "\n🚨 Restock immediately to avoid lost sales!"
         else:
             response = "✅ All products have healthy stock levels. No restocking needed right now."
-
     elif any(w in question for w in ['customer','buyer','client','who','loyal']):
         response = f"👥 Total Customers: {total_customers}\n🛍️ Total Orders: {total_orders}"
-        if top_customer:
-            response += f"\n\n👑 Most Valuable Customer: {top_customer['name']}\n💰 Total Spent: ₹{float(top_customer['spent']):,.0f}\n\n💡 Consider a loyalty reward for them!"
-
+        if top_customer: response += f"\n\n👑 Most Valuable Customer: {top_customer['name']}\n💰 Total Spent: ₹{float(top_customer['spent']):,.0f}\n\n💡 Consider a loyalty reward for them!"
     elif any(w in question for w in ['product','item','catalog','jewel','ring','necklace','earring','bangle','bracelet']):
         response = f"💍 Total Products in Catalog: {total_products}"
-        if top_product:
-            response += f"\n🏆 Best Seller: {top_product['name']} (₹{float(top_product['revenue']):,.0f})"
-        if low_stock:
-            response += f"\n⚠️ {len(low_stock)} product(s) need restocking"
-
+        if top_product: response += f"\n🏆 Best Seller: {top_product['name']} (₹{float(top_product['revenue']):,.0f})"
+        if low_stock: response += f"\n⚠️ {len(low_stock)} product(s) need restocking"
     elif any(w in question for w in ['order','transaction','purchase','how many']):
         response = f"🛍️ Total Sales: {total_orders}\n💰 Total Revenue: ₹{total_rev:,.0f}"
-        if latest_month:
-            response += f"\n📅 Latest: {latest_month['month']} — ₹{float(latest_month['rev']):,.0f}"
-
+        if latest_month: response += f"\n📅 Latest: {latest_month['month']} — ₹{float(latest_month['rev']):,.0f}"
     elif any(w in question for w in ['category','type','kind']):
         if top_category:
             response = f"💍 Top Category: {top_category['category']}\n💵 Revenue: ₹{float(top_category['revenue']):,.0f}\n\n💡 Focus marketing here for maximum ROI!"
-
     elif any(w in question for w in ['advice','suggest','recommend','should','improve','grow','help','tips']):
         tips = []
-        if top_product:
-            tips.append(f"📈 Stock more '{top_product['name']}' — it's your best seller")
-        if low_stock:
-            tips.append(f"⚠️ Restock {', '.join([p['name'] for p in low_stock[:2]])} immediately")
-        if total_customers < 10:
-            tips.append("👥 Focus on customer acquisition — run social media promotions")
-        if top_category:
-            tips.append(f"💎 Expand your {top_category['category']} collection")
+        if top_product: tips.append(f"📈 Stock more '{top_product['name']}' — it's your best seller")
+        if low_stock: tips.append(f"⚠️ Restock {', '.join([p['name'] for p in low_stock[:2]])} immediately")
+        if total_customers < 10: tips.append("👥 Focus on customer acquisition — run social media promotions")
+        if top_category: tips.append(f"💎 Expand your {top_category['category']} collection")
         tips.append("🎯 Consider festive season discounts to boost sales")
         tips.append("📱 Ask loyal customers for reviews and referrals")
         response = "🤖 Top Business Tips for Tara Adore:\n\n" + "\n".join(tips)
-
     elif any(w in question for w in ['forecast','predict','future','next month']):
         response = "🔮 Check the AI Forecast page for ML-powered sales predictions based on your historical data!"
-
     elif any(w in question for w in ['profit','margin','cost']):
         response = f"💰 Recorded Revenue: ₹{total_rev:,.0f} from {total_orders} orders.\n\n💡 Visit the Business Insights page to track full profit margins per product!"
-
     else:
         response = "🤖 I can help with:\n• Revenue & earnings\n• Best/worst products\n• Stock alerts\n• Customer insights\n• Business advice\n• Category performance\n\nTry: 'What is my best selling product?' or 'Give me business advice!'"
 
@@ -1050,47 +992,43 @@ def download_invoice(sale_id):
     c.setStrokeColorRGB(0.91, 0.79, 0.48, 0.3)
     c.setLineWidth(0.5)
     c.line(25*mm, height - 108*mm, width - 25*mm, height - 108*mm)
-    COL_PRODUCT  = 25*mm
-    COL_MATERIAL = 90*mm
-    COL_WEIGHT   = 125*mm
-    COL_QTY      = 148*mm
-    COL_UNIT     = 168*mm
-    COL_TOTAL    = width - 20*mm
+    COL_PRODUCT=25*mm; COL_MATERIAL=90*mm; COL_WEIGHT=125*mm
+    COL_QTY=148*mm; COL_UNIT=168*mm; COL_TOTAL=width-20*mm
     c.setFillColorRGB(0.91, 0.79, 0.48)
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(COL_PRODUCT,  height - 117*mm, "PRODUCT")
-    c.drawString(COL_MATERIAL, height - 117*mm, "MATERIAL")
-    c.drawString(COL_WEIGHT,   height - 117*mm, "WEIGHT")
-    c.drawString(COL_QTY,      height - 117*mm, "QTY")
-    c.drawRightString(COL_UNIT,  height - 117*mm, "UNIT PRICE")
-    c.drawRightString(COL_TOTAL, height - 117*mm, "TOTAL")
+    c.drawString(COL_PRODUCT, height-117*mm, "PRODUCT")
+    c.drawString(COL_MATERIAL, height-117*mm, "MATERIAL")
+    c.drawString(COL_WEIGHT, height-117*mm, "WEIGHT")
+    c.drawString(COL_QTY, height-117*mm, "QTY")
+    c.drawRightString(COL_UNIT, height-117*mm, "UNIT PRICE")
+    c.drawRightString(COL_TOTAL, height-117*mm, "TOTAL")
     c.setStrokeColorRGB(0.91, 0.79, 0.48, 0.5)
-    c.line(25*mm, height - 120*mm, width - 20*mm, height - 120*mm)
+    c.line(25*mm, height-120*mm, width-20*mm, height-120*mm)
     c.setFillColorRGB(0.94, 0.93, 0.89)
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(COL_PRODUCT, height - 130*mm, str(sale['product_name']))
+    c.drawString(COL_PRODUCT, height-130*mm, str(sale['product_name']))
     c.setFillColorRGB(0.62, 0.60, 0.58)
     c.setFont("Helvetica", 9)
-    c.drawString(COL_PRODUCT,  height - 138*mm, str(sale['category']))
-    c.drawString(COL_MATERIAL, height - 130*mm, str(sale['material'] or 'N/A'))
-    c.drawString(COL_WEIGHT,   height - 130*mm, f"{sale['weight_grams']}g" if sale['weight_grams'] else 'N/A')
-    c.drawString(COL_QTY,      height - 130*mm, str(sale['quantity']))
-    c.drawRightString(COL_UNIT, height - 130*mm, f"Rs.{float(sale['unit_price']):,.0f}")
+    c.drawString(COL_PRODUCT, height-138*mm, str(sale['category']))
+    c.drawString(COL_MATERIAL, height-130*mm, str(sale['material'] or 'N/A'))
+    c.drawString(COL_WEIGHT, height-130*mm, f"{sale['weight_grams']}g" if sale['weight_grams'] else 'N/A')
+    c.drawString(COL_QTY, height-130*mm, str(sale['quantity']))
+    c.drawRightString(COL_UNIT, height-130*mm, f"Rs.{float(sale['unit_price']):,.0f}")
     c.setFillColorRGB(0.91, 0.79, 0.48)
     c.setFont("Helvetica-Bold", 10)
-    c.drawRightString(COL_TOTAL, height - 130*mm, f"Rs.{float(sale['total_amount']):,.0f}")
+    c.drawRightString(COL_TOTAL, height-130*mm, f"Rs.{float(sale['total_amount']):,.0f}")
     c.setStrokeColorRGB(0.91, 0.79, 0.48, 0.3)
-    c.line(25*mm, height - 145*mm, width - 20*mm, height - 145*mm)
+    c.line(25*mm, height-145*mm, width-20*mm, height-145*mm)
     c.setFillColorRGB(0.15, 0.12, 0.05)
-    c.roundRect(115*mm, height - 170*mm, width - 135*mm, 22*mm, 5, fill=1, stroke=0)
+    c.roundRect(115*mm, height-170*mm, width-135*mm, 22*mm, 5, fill=1, stroke=0)
     c.setStrokeColorRGB(0.91, 0.79, 0.48)
     c.setLineWidth(1)
-    c.roundRect(115*mm, height - 170*mm, width - 135*mm, 22*mm, 5, fill=0, stroke=1)
+    c.roundRect(115*mm, height-170*mm, width-135*mm, 22*mm, 5, fill=0, stroke=1)
     c.setFillColorRGB(0.91, 0.79, 0.48)
     c.setFont("Helvetica-Bold", 8)
-    c.drawString(120*mm, height - 153*mm, "TOTAL AMOUNT")
+    c.drawString(120*mm, height-153*mm, "TOTAL AMOUNT")
     c.setFont("Helvetica-Bold", 16)
-    c.drawRightString(width - 20*mm, height - 153*mm, f"Rs.{float(sale['total_amount']):,.0f}")
+    c.drawRightString(width-20*mm, height-153*mm, f"Rs.{float(sale['total_amount']):,.0f}")
     c.setFillColorRGB(0.62, 0.60, 0.58)
     c.setFont("Helvetica", 8)
     c.drawCentredString(width/2, 45*mm, "Thank you for choosing Tara Adore. We hope you love your jewellery!")
@@ -1149,8 +1087,7 @@ def api_profit_margins():
                COUNT(s.id) as total_sold,
                COALESCE(SUM(s.total_amount), 0) as total_revenue,
                COALESCE(SUM(s.quantity), 0) as total_units
-        FROM products p
-        LEFT JOIN sales s ON p.id = s.product_id
+        FROM products p LEFT JOIN sales s ON p.id = s.product_id
         GROUP BY p.id, p.name, p.category, p.price, p.cost_price
         ORDER BY p.price DESC
     """)
@@ -1164,15 +1101,10 @@ def api_profit_margins():
         margin_pct    = ((price - cost) / price * 100) if cost > 0 and price > 0 else None
         total_profit  = float(p['total_revenue']) - (cost * int(p['total_units'])) if cost > 0 else None
         result.append({
-            'id': p['id'],
-            'name': p['name'],
-            'category': p['category'],
-            'selling_price': price,
-            'cost_price': cost,
-            'margin_amount': margin_amount,
-            'margin_pct': margin_pct,
-            'total_sold': p['total_sold'],
-            'total_revenue': float(p['total_revenue']),
+            'id': p['id'], 'name': p['name'], 'category': p['category'],
+            'selling_price': price, 'cost_price': cost,
+            'margin_amount': margin_amount, 'margin_pct': margin_pct,
+            'total_sold': p['total_sold'], 'total_revenue': float(p['total_revenue']),
             'total_profit': total_profit
         })
     return jsonify(result)
@@ -1185,44 +1117,31 @@ def api_festival_calendar():
     db = get_db()
     cur = db.cursor()
     cur.execute("""
-        SELECT MONTH(sale_date) as month_num,
-               MONTHNAME(sale_date) as month_name,
-               COUNT(*) as orders,
-               SUM(total_amount) as revenue,
-               AVG(total_amount) as avg_order
-        FROM sales
-        GROUP BY MONTH(sale_date), MONTHNAME(sale_date)
-        ORDER BY month_num
+        SELECT MONTH(sale_date) as month_num, MONTHNAME(sale_date) as month_name,
+               COUNT(*) as orders, SUM(total_amount) as revenue, AVG(total_amount) as avg_order
+        FROM sales GROUP BY MONTH(sale_date), MONTHNAME(sale_date) ORDER BY month_num
     """)
     monthly = cur.fetchall()
     db.close()
-
     festivals = [
-        {'month': 1,  'name': 'Makar Sankranti / Pongal',     'icon': '🪁', 'tip': 'Gold bangles & traditional jewellery surge'},
-        {'month': 2,  'name': "Valentine's Day",               'icon': '💝', 'tip': 'Rings, pendants & couples jewellery peak'},
-        {'month': 3,  'name': 'Holi / Ugadi',                  'icon': '🎨', 'tip': 'Colourful earrings & festive pieces sell well'},
-        {'month': 4,  'name': 'Akshaya Tritiya',               'icon': '✨', 'tip': 'Highest gold buying day of the year!'},
-        {'month': 5,  'name': "Mother's Day",                  'icon': '👩', 'tip': 'Gifting jewellery spikes — necklaces & pendants'},
-        {'month': 6,  'name': 'Wedding Season',                'icon': '💒', 'tip': 'Bridal sets, bangles & heavy jewellery'},
-        {'month': 7,  'name': 'Guru Purnima',                  'icon': '🌕', 'tip': 'Silver items & traditional gifts'},
-        {'month': 8,  'name': 'Raksha Bandhan / Janmashtami', 'icon': '🎁', 'tip': 'Gifting — bracelets, bangles & chains'},
-        {'month': 9,  'name': 'Ganesh Chaturthi / Navratri',  'icon': '🙏', 'tip': 'Festive jewellery & temple collections'},
-        {'month': 10, 'name': 'Dussehra / Navratri',          'icon': '🏹', 'tip': 'Premium collections, auspicious buying'},
-        {'month': 11, 'name': 'Diwali / Dhanteras',            'icon': '🪔', 'tip': 'Peak gold & silver buying — best month!'},
-        {'month': 12, 'name': 'Christmas / New Year',          'icon': '🎄', 'tip': 'Gifting jewellery & year-end celebration pieces'},
+        {'month':1,'name':'Makar Sankranti / Pongal','icon':'🪁','tip':'Gold bangles & traditional jewellery surge'},
+        {'month':2,'name':"Valentine's Day",'icon':'💝','tip':'Rings, pendants & couples jewellery peak'},
+        {'month':3,'name':'Holi / Ugadi','icon':'🎨','tip':'Colourful earrings & festive pieces sell well'},
+        {'month':4,'name':'Akshaya Tritiya','icon':'✨','tip':'Highest gold buying day of the year!'},
+        {'month':5,'name':"Mother's Day",'icon':'👩','tip':'Gifting jewellery spikes — necklaces & pendants'},
+        {'month':6,'name':'Wedding Season','icon':'💒','tip':'Bridal sets, bangles & heavy jewellery'},
+        {'month':7,'name':'Guru Purnima','icon':'🌕','tip':'Silver items & traditional gifts'},
+        {'month':8,'name':'Raksha Bandhan / Janmashtami','icon':'🎁','tip':'Gifting — bracelets, bangles & chains'},
+        {'month':9,'name':'Ganesh Chaturthi / Navratri','icon':'🙏','tip':'Festive jewellery & temple collections'},
+        {'month':10,'name':'Dussehra / Navratri','icon':'🏹','tip':'Premium collections, auspicious buying'},
+        {'month':11,'name':'Diwali / Dhanteras','icon':'🪔','tip':'Peak gold & silver buying — best month!'},
+        {'month':12,'name':'Christmas / New Year','icon':'🎄','tip':'Gifting jewellery & year-end celebration pieces'},
     ]
-
-    monthly_dict = {int(m['month_num']): {
-        'orders': int(m['orders']),
-        'revenue': float(m['revenue']),
-        'avg_order': float(m['avg_order'])
-    } for m in monthly}
-
+    monthly_dict = {int(m['month_num']): {'orders':int(m['orders']),'revenue':float(m['revenue']),'avg_order':float(m['avg_order'])} for m in monthly}
     result = []
     for f in festivals:
-        data = monthly_dict.get(f['month'], {'orders': 0, 'revenue': 0, 'avg_order': 0})
+        data = monthly_dict.get(f['month'], {'orders':0,'revenue':0,'avg_order':0})
         result.append({**f, **data})
-
     return jsonify(result)
 
 # ── PRICE ELASTICITY ANALYZER ─────────────────────────────────────────────────
@@ -1238,77 +1157,41 @@ def api_price_elasticity():
                COALESCE(SUM(s.quantity), 0) as total_units,
                COALESCE(SUM(s.total_amount), 0) as total_revenue,
                COALESCE(AVG(s.total_amount), 0) as avg_sale
-        FROM products p
-        LEFT JOIN sales s ON p.id = s.product_id
+        FROM products p LEFT JOIN sales s ON p.id = s.product_id
         GROUP BY p.id, p.name, p.category, p.price
-        HAVING total_orders > 0
-        ORDER BY p.price DESC
+        HAVING total_orders > 0 ORDER BY p.price DESC
     """)
     products = cur.fetchall()
-
     cur.execute("""
-        SELECT
-            CASE
-                WHEN p.price < 10000  THEN 'Under ₹10K'
-                WHEN p.price < 25000  THEN '₹10K–25K'
-                WHEN p.price < 50000  THEN '₹25K–50K'
-                WHEN p.price < 100000 THEN '₹50K–1L'
-                ELSE 'Above ₹1L'
-            END as band,
-            COUNT(DISTINCT p.id) as products,
-            COUNT(s.id) as orders,
-            COALESCE(SUM(s.total_amount), 0) as revenue
-        FROM products p
-        LEFT JOIN sales s ON p.id = s.product_id
-        GROUP BY band
-        ORDER BY MIN(p.price)
+        SELECT CASE WHEN p.price < 10000 THEN 'Under ₹10K' WHEN p.price < 25000 THEN '₹10K–25K'
+               WHEN p.price < 50000 THEN '₹25K–50K' WHEN p.price < 100000 THEN '₹50K–1L'
+               ELSE 'Above ₹1L' END as band,
+               COUNT(DISTINCT p.id) as products, COUNT(s.id) as orders,
+               COALESCE(SUM(s.total_amount), 0) as revenue
+        FROM products p LEFT JOIN sales s ON p.id = s.product_id
+        GROUP BY band ORDER BY MIN(p.price)
     """)
     bands = cur.fetchall()
     db.close()
-
-    result = []
     all_prices = [float(p['price']) for p in products]
     all_units  = [int(p['total_units']) for p in products]
-    avg_price  = sum(all_prices) / len(all_prices) if all_prices else 1
-    avg_units  = sum(all_units)  / len(all_units)  if all_units  else 1
-
+    avg_price  = sum(all_prices)/len(all_prices) if all_prices else 1
+    avg_units  = sum(all_units)/len(all_units) if all_units else 1
+    result = []
     for p in products:
-        price = float(p['price'])
-        units = int(p['total_units'])
-        price_deviation = (price - avg_price) / avg_price if avg_price else 0
-        unit_deviation  = (units - avg_units)  / avg_units  if avg_units  else 0
-        elasticity = (unit_deviation / price_deviation) if price_deviation != 0 else 0
-
-        if abs(elasticity) > 1.5:
-            sensitivity = 'High'
-            rec = 'Price sensitive — small discounts drive big volume'
-        elif abs(elasticity) > 0.5:
-            sensitivity = 'Medium'
-            rec = 'Moderate sensitivity — test 5-10% promotions'
-        else:
-            sensitivity = 'Low'
-            rec = 'Price inelastic — customers value quality over price'
-
-        result.append({
-            'id': p['id'],
-            'name': p['name'],
-            'category': p['category'],
-            'price': price,
-            'total_units': units,
-            'total_revenue': float(p['total_revenue']),
-            'elasticity': round(elasticity, 2),
-            'sensitivity': sensitivity,
-            'recommendation': rec
-        })
-
-    band_data = [{
-        'band': b['band'],
-        'products': int(b['products']),
-        'orders': int(b['orders']),
-        'revenue': float(b['revenue'])
-    } for b in bands]
-
-    return jsonify({'products': result, 'bands': band_data})
+        price = float(p['price']); units = int(p['total_units'])
+        pd_ = (price-avg_price)/avg_price if avg_price else 0
+        ud_ = (units-avg_units)/avg_units if avg_units else 0
+        elasticity = (ud_/pd_) if pd_ != 0 else 0
+        sensitivity = 'High' if abs(elasticity)>1.5 else ('Medium' if abs(elasticity)>0.5 else 'Low')
+        rec = ('Price sensitive — small discounts drive big volume' if sensitivity=='High' else
+               'Moderate sensitivity — test 5-10% promotions' if sensitivity=='Medium' else
+               'Price inelastic — customers value quality over price')
+        result.append({'id':p['id'],'name':p['name'],'category':p['category'],'price':price,
+                       'total_units':units,'total_revenue':float(p['total_revenue']),
+                       'elasticity':round(elasticity,2),'sensitivity':sensitivity,'recommendation':rec})
+    band_data = [{'band':b['band'],'products':int(b['products']),'orders':int(b['orders']),'revenue':float(b['revenue'])} for b in bands]
+    return jsonify({'products':result,'bands':band_data})
 
 # ── DEAD STOCK LIQUIDATION ANALYZER ──────────────────────────────────────────
 @app.route('/api/dead_stock_analysis')
@@ -1322,71 +1205,39 @@ def api_dead_stock_analysis():
         db.commit()
     except: pass
     cur.execute("""
-        SELECT p.id, p.name, p.category, p.material, p.price,
-               p.cost_price, p.stock_quantity,
-               COUNT(s.id) as total_sold,
-               MAX(s.sale_date) as last_sold,
+        SELECT p.id, p.name, p.category, p.material, p.price, p.cost_price, p.stock_quantity,
+               COUNT(s.id) as total_sold, MAX(s.sale_date) as last_sold,
                DATEDIFF(CURDATE(), MAX(s.sale_date)) as days_since_sold
-        FROM products p
-        LEFT JOIN sales s ON p.id = s.product_id
+        FROM products p LEFT JOIN sales s ON p.id = s.product_id
         GROUP BY p.id, p.name, p.category, p.material, p.price, p.cost_price, p.stock_quantity
         ORDER BY days_since_sold DESC, p.stock_quantity DESC
     """)
     products = cur.fetchall()
     db.close()
-
     result = []
     for p in products:
-        days  = int(p['days_since_sold'] or 9999)
-        stock = int(p['stock_quantity'] or 0)
-        price = float(p['price'] or 0)
-        cost  = float(p['cost_price'] or 0)
-        stock_value        = price * stock
-        inventory_age_risk = stock_value * (days / 365) * 0.05
-
+        days=int(p['days_since_sold'] or 9999); stock=int(p['stock_quantity'] or 0)
+        price=float(p['price'] or 0); cost=float(p['cost_price'] or 0)
+        stock_value=price*stock; inventory_age_risk=stock_value*(days/365)*0.05
         if days > 90 or (p['last_sold'] is None and stock > 0):
-            if days > 180 or p['last_sold'] is None:
-                urgency      = 'Critical'
-                discount_rec = 30
-            elif days > 90:
-                urgency      = 'High'
-                discount_rec = 15
-            else:
-                urgency      = 'Medium'
-                discount_rec = 10
-
-            discounted_price   = price * (1 - discount_rec / 100)
-            profit_at_discount = (discounted_price - cost) if cost > 0 else None
-
-            strategies = []
-            if discount_rec >= 20:
-                strategies.append(f'Flash sale at ₹{discounted_price:,.0f} ({discount_rec}% off)')
-            if stock > 3:
-                strategies.append('Bundle with fast-moving items')
+            if days>180 or p['last_sold'] is None: urgency='Critical'; discount_rec=30
+            elif days>90: urgency='High'; discount_rec=15
+            else: urgency='Medium'; discount_rec=10
+            discounted_price=price*(1-discount_rec/100)
+            profit_at_discount=(discounted_price-cost) if cost>0 else None
+            strategies=[]
+            if discount_rec>=20: strategies.append(f'Flash sale at ₹{discounted_price:,.0f} ({discount_rec}% off)')
+            if stock>3: strategies.append('Bundle with fast-moving items')
             strategies.append('Feature in social media / WhatsApp broadcast')
-            if days > 180:
-                strategies.append('Consider festival season push — Diwali/Akshaya Tritiya')
-
-            result.append({
-                'id': p['id'],
-                'name': p['name'],
-                'category': p['category'],
-                'material': p['material'],
-                'price': price,
-                'cost_price': cost,
-                'stock_quantity': stock,
-                'total_sold': int(p['total_sold'] or 0),
-                'last_sold': str(p['last_sold']) if p['last_sold'] else None,
-                'days_since_sold': days if days < 9999 else None,
-                'stock_value': stock_value,
-                'holding_cost_risk': round(inventory_age_risk, 2),
-                'urgency': urgency,
-                'discount_rec': discount_rec,
-                'discounted_price': round(discounted_price, 0),
-                'profit_at_discount': round(profit_at_discount, 2) if profit_at_discount is not None else None,
-                'strategies': strategies
-            })
-
+            if days>180: strategies.append('Consider festival season push — Diwali/Akshaya Tritiya')
+            result.append({'id':p['id'],'name':p['name'],'category':p['category'],'material':p['material'],
+                           'price':price,'cost_price':cost,'stock_quantity':stock,'total_sold':int(p['total_sold'] or 0),
+                           'last_sold':str(p['last_sold']) if p['last_sold'] else None,
+                           'days_since_sold':days if days<9999 else None,'stock_value':stock_value,
+                           'holding_cost_risk':round(inventory_age_risk,2),'urgency':urgency,'discount_rec':discount_rec,
+                           'discounted_price':round(discounted_price,0),
+                           'profit_at_discount':round(profit_at_discount,2) if profit_at_discount is not None else None,
+                           'strategies':strategies})
     return jsonify(result)
 
 # ── API: customers and products for dropdowns ─────────────────────────────────
