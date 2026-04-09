@@ -69,7 +69,7 @@
        style="display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:rgba(201,168,76,0.1);border:1px solid rgba(201,168,76,0.3);border-radius:8px;color:var(--g2);font-size:.82rem;font-weight:600;text-decoration:none">
         <i class="fas fa-download"></i> Export CSV
     </a>
-    <button onclick="document.getElementById('saleModal').style.display='flex'" class="btn btn-gold">
+    <button onclick="openSaleModal()" class="btn btn-gold">
         <i class="fas fa-plus"></i> Add Sale
     </button>
 </div>
@@ -130,37 +130,65 @@
 
 <!-- ADD SALE MODAL -->
 <div id="saleModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);z-index:999;align-items:center;justify-content:center">
-    <div style="background:#111;border:1px solid var(--border);border-radius:18px;padding:36px;width:480px;max-width:95vw;animation:fadeUp .3s ease">
+    <div style="background:#111;border:1px solid var(--border);border-radius:18px;padding:36px;width:500px;max-width:95vw;animation:fadeUp .3s ease">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
             <div>
                 <div style="font-family:'Cormorant Garamond',serif;font-size:1.3rem;font-weight:600">Add New Sale</div>
                 <div style="font-size:.72rem;color:var(--muted);margin-top:3px">Record a sales transaction</div>
             </div>
-            <button onclick="document.getElementById('saleModal').style.display='none'"
+            <button onclick="closeSaleModal()"
                     style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer">
                 <i class="fas fa-times"></i>
             </button>
         </div>
         <form method="POST" action="/add_sale">
-            <div class="form-group">
-                <label>Customer ID</label>
-                <input type="number" name="customer_id" class="form-control" placeholder="Enter customer ID" required>
+
+            <!-- Customer dropdown -->
+            <div class="form-group" style="margin-bottom:14px">
+                <label style="font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;display:block">Customer</label>
+                <input type="text" id="customerSearch" placeholder="Search customer name…"
+                       oninput="filterCustomers()"
+                       style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:.82rem;outline:none;margin-bottom:6px">
+                <select name="customer_id" id="customerSelect" required
+                        style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:.82rem;outline:none">
+                    <option value="">-- Select Customer --</option>
+                </select>
             </div>
-            <div class="form-group">
-                <label>Product ID</label>
-                <input type="number" name="product_id" class="form-control" placeholder="Enter product ID" required>
+
+            <!-- Product dropdown -->
+            <div class="form-group" style="margin-bottom:14px">
+                <label style="font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;display:block">Product</label>
+                <input type="text" id="productSearch" placeholder="Search product name…"
+                       oninput="filterProducts()"
+                       style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:.82rem;outline:none;margin-bottom:6px">
+                <select name="product_id" id="productSelect" required onchange="updatePrice()"
+                        style="width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:.82rem;outline:none">
+                    <option value="">-- Select Product --</option>
+                </select>
             </div>
-            <div class="form-group">
-                <label>Quantity</label>
-                <input type="number" name="quantity" class="form-control" placeholder="e.g. 1" min="1" required>
+
+            <!-- Price preview -->
+            <div id="pricePreview" style="display:none;background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:.82rem;color:var(--g2)">
+                Unit Price: <strong id="unitPriceDisplay">--</strong>
             </div>
-            <div class="form-group">
-                <label>Sale Date</label>
+
+            <div class="form-group" style="margin-bottom:14px">
+                <label style="font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;display:block">Quantity</label>
+                <input type="number" name="quantity" id="quantityInput" class="form-control" placeholder="e.g. 1" min="1" value="1" required oninput="updateTotal()">
+            </div>
+
+            <!-- Total preview -->
+            <div id="totalPreview" style="display:none;background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:.9rem;color:var(--gold-light);font-weight:600">
+                Total: <span id="totalDisplay">--</span>
+            </div>
+
+            <div class="form-group" style="margin-bottom:20px">
+                <label style="font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;display:block">Sale Date</label>
                 <input type="date" name="sale_date" class="form-control" required>
             </div>
-            <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px">
-                <button type="button" onclick="document.getElementById('saleModal').style.display='none'"
-                        class="btn btn-outline">Cancel</button>
+
+            <div style="display:flex;gap:12px;justify-content:flex-end">
+                <button type="button" onclick="closeSaleModal()" class="btn btn-outline">Cancel</button>
                 <button type="submit" class="btn btn-gold">
                     <i class="fas fa-plus"></i> Add Sale
                 </button>
@@ -168,4 +196,86 @@
         </form>
     </div>
 </div>
-{% endblock %}
+
+<script>
+let allCustomers = [];
+let allProducts  = [];
+
+async function openSaleModal() {
+    document.getElementById('saleModal').style.display = 'flex';
+    if (allCustomers.length === 0) {
+        const [cRes, pRes] = await Promise.all([
+            fetch('/api/customers_list').then(r => r.json()),
+            fetch('/api/products_list').then(r => r.json())
+        ]);
+        allCustomers = cRes;
+        allProducts  = pRes;
+        populateCustomers(allCustomers);
+        populateProducts(allProducts);
+    }
+}
+
+function closeSaleModal() {
+    document.getElementById('saleModal').style.display = 'none';
+}
+
+function populateCustomers(list) {
+    const sel = document.getElementById('customerSelect');
+    sel.innerHTML = '<option value="">-- Select Customer --</option>';
+    list.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `${c.name}${c.city ? ' — ' + c.city : ''}`;
+        sel.appendChild(opt);
+    });
+}
+
+function populateProducts(list) {
+    const sel = document.getElementById('productSelect');
+    sel.innerHTML = '<option value="">-- Select Product --</option>';
+    list.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.dataset.price = p.price;
+        opt.textContent = `${p.name} (${p.category}) — ₹${Number(p.price).toLocaleString('en-IN')}`;
+        sel.appendChild(opt);
+    });
+}
+
+function filterCustomers() {
+    const q = document.getElementById('customerSearch').value.toLowerCase();
+    const filtered = allCustomers.filter(c => c.name.toLowerCase().includes(q));
+    populateCustomers(filtered);
+}
+
+function filterProducts() {
+    const q = document.getElementById('productSearch').value.toLowerCase();
+    const filtered = allProducts.filter(p => p.name.toLowerCase().includes(q));
+    populateProducts(filtered);
+}
+
+function updatePrice() {
+    const sel = document.getElementById('productSelect');
+    const opt = sel.options[sel.selectedIndex];
+    const price = opt && opt.dataset.price ? Number(opt.dataset.price) : null;
+    if (price) {
+        document.getElementById('unitPriceDisplay').textContent = '₹' + price.toLocaleString('en-IN');
+        document.getElementById('pricePreview').style.display = 'block';
+        document.getElementById('totalPreview').style.display = 'block';
+        updateTotal();
+    } else {
+        document.getElementById('pricePreview').style.display = 'none';
+        document.getElementById('totalPreview').style.display = 'none';
+    }
+}
+
+function updateTotal() {
+    const sel = document.getElementById('productSelect');
+    const opt = sel.options[sel.selectedIndex];
+    const price = opt && opt.dataset.price ? Number(opt.dataset.price) : 0;
+    const qty   = Number(document.getElementById('quantityInput').value) || 1;
+    if (price) {
+        document.getElementById('totalDisplay').textContent = '₹' + (price * qty).toLocaleString('en-IN');
+    }
+}
+</script>

@@ -1389,6 +1389,29 @@ def api_dead_stock_analysis():
 
     return jsonify(result)
 
+# ── API: customers and products for dropdowns ─────────────────────────────────
+@app.route('/api/customers_list')
+def api_customers_list():
+    if 'admin' not in session:
+        return jsonify([])
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT id, name, city FROM customers ORDER BY name")
+    customers = cur.fetchall()
+    db.close()
+    return jsonify(customers)
+
+@app.route('/api/products_list')
+def api_products_list():
+    if 'admin' not in session:
+        return jsonify([])
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT id, name, category, price FROM products ORDER BY name")
+    products = cur.fetchall()
+    db.close()
+    return jsonify(products)
+
 # ── RUN ───────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
     app.run(debug=True)
